@@ -1,34 +1,40 @@
 -- ==========================================
 -- RADAR DE JOGADORES - COMPUTERCRAFT
+-- Atualizado para versão 1.21.1 (Neoforge)
 -- ==========================================
 
--- Conecta os periféricos
-local monitor = peripheral.find("monitor")
+-- Tenta conectar pelo nome
 local detector = peripheral.find("player_detector")
+local monitor = peripheral.find("monitor")
 
+-- Sistema anti-falha: Força a conexão pelos lados mostrados na sua foto
+if not detector then detector = peripheral.wrap("left") end
+if not monitor then monitor = peripheral.wrap("front") end
+
+-- Verifica se conectou
 if not monitor then
-    print("ERRO: Monitor não encontrado!")
+    print("ERRO: Monitor não encontrado na frente!")
     return
 end
 if not detector then
-    print("ERRO: Player Detector não encontrado!")
+    print("ERRO: Player Detector não encontrado na esquerda!")
     return
 end
 
 -- ==========================================
--- CONFIGURAÇÕES (ALTERE AQUI)
--- Coloque as coordenadas reais da sua base:
+-- CONFIGURAÇÕES (MUDE ISTO ANTES DE USAR)
+-- Coloque as coordenadas reais de onde o computador está:
 -- ==========================================
-local meuX = 150  -- Mude para o seu X
-local meuZ = -320 -- Mude para o seu Z
+local meuX = 0  -- Substitua 0 pelo seu X
+local meuZ = 0  -- Substitua 0 pelo seu Z
 
--- Configuração dos alcances (200, 1000, 999999 simulando infinito)
+-- Configuração dos alcances
 local ranges = {200, 1000, 999999}
 local rangeNomes = {"200", "1000", "Infinito"}
 local rIndex = 1
 
 -- Prepara o monitor
-monitor.setTextScale(0.5) -- Deixa os "pixels" menores
+monitor.setTextScale(0.5)
 local w, h = monitor.getSize()
 local cx = math.floor(w / 2)
 local cy = math.floor(h / 2)
@@ -47,25 +53,24 @@ local function drawRadar()
     monitor.write(" [ Alcance: " .. rangeNomes[rIndex] .. " ] ")
     monitor.setBackgroundColor(colors.black)
 
-    -- 2. Desenha o círculo do radar
+    -- 2. Desenha o círculo do radar (Fundo verde escuro)
     monitor.setTextColor(colors.green)
     for i = 0, 359, 10 do
         local rad = math.rad(i)
-        -- Multiplicamos o X por 2 porque as letras no CC são mais altas do que largas
         local x = cx + math.floor(math.cos(rad) * radius * 2) 
         local y = cy + math.floor(math.sin(rad) * radius)
-        if x > 0 and x <= w and y > 0 and y <= h then
+        if x >= 1 and x <= w and y >= 1 and y <= h then
             monitor.setCursorPos(x, y)
             monitor.write(".")
         end
     end
 
-    -- 3. Desenha a linha de varredura (Sweep)
+    -- 3. Desenha a linha de varredura (Sweep Verde Claro)
     local sweepRad = math.rad(angle)
     for r = 1, radius do
         local x = cx + math.floor(math.cos(sweepRad) * r * 2)
         local y = cy + math.floor(math.sin(sweepRad) * r)
-        if x > 0 and x <= w and y > 0 and y <= h then
+        if x >= 1 and x <= w and y >= 1 and y <= h then
             monitor.setCursorPos(x, y)
             monitor.setTextColor(colors.lime)
             monitor.write("+")
@@ -74,39 +79,45 @@ local function drawRadar()
 
     -- 4. Pega os jogadores e desenha no mapa
     local currentRange = ranges[rIndex]
+    
+    -- "pcall" previne que o programa quebre se o mod der algum erro de leitura
     local success, players = pcall(detector.getOnlinePlayers)
     
-    if success and players then
+    if success and type(players) == "table" then
         for _, nome in ipairs(players) do
-            local pos = detector.getPlayerPos(nome)
+            local successPos, pos = pcall(detector.getPlayerPos, nome)
             
-            if pos and pos.x and pos.z then
-                -- Calcula a distância entre o radar e o jogador
+            if successPos and pos and pos.x and pos.z then
                 local dx = pos.x - meuX
                 local dz = pos.z - meuZ
                 local dist = math.sqrt(dx*dx + dz*dz)
 
-                -- Se estiver dentro do alcance selecionado, desenha na tela
                 if dist <= currentRange then
-                    local scale = radius / currentRange
+                    -- Ajuste de escala (se for infinito, trava o zoom visual em 3000 blocos para caber na tela)
+                    local visualRange = currentRange
+                    if currentRange == 999999 then 
+                        visualRange = math.max(dist, 3000) 
+                    end
+                    
+                    local scale = radius / visualRange
                     local px = cx + math.floor(dx * scale * 2)
                     local pz = cy + math.floor(dz * scale)
 
                     -- Garante que o ponto não vai sair da tela
-                    if px > 0 and px <= w and pz > 0 and pz <= h then
-                        -- Desenha o ponto do jogador
+                    if px >= 1 and px <= w and pz >= 1 and pz <= h then
+                        -- Desenha Ponto
                         monitor.setCursorPos(px, pz)
                         monitor.setTextColor(colors.red)
                         monitor.write("O")
                         
-                        -- Desenha o Nome
-                        monitor.setCursorPos(px - math.floor(#nome / 2), pz + 1)
+                        -- Desenha Nome
+                        monitor.setCursorPos(math.max(1, px - math.floor(#nome / 2)), pz + 1)
                         monitor.setTextColor(colors.white)
                         monitor.write(nome)
                         
-                        -- Desenha as Coordenadas
-                        local coordText = math.floor(pos.x) .. ", " .. math.floor(pos.z)
-                        monitor.setCursorPos(px - math.floor(#coordText / 2), pz + 2)
+                        -- Desenha Coordenadas
+                        local coordText = math.floor(pos.x) .. "," .. math.floor(pos.z)
+                        monitor.setCursorPos(math.max(1, px - math.floor(#coordText / 2)), pz + 2)
                         monitor.setTextColor(colors.lightGray)
                         monitor.write(coordText)
                     end
@@ -117,23 +128,22 @@ local function drawRadar()
 end
 
 -- ==========================================
--- LOOP PRINCIPAL (Varredura e Cliques)
+-- LOOP PRINCIPAL (Giro do radar e Cliques)
 -- ==========================================
 while true do
     drawRadar()
     
-    -- Gira a linha do radar em 15 graus por quadro
+    -- Velocidade de rotação da linha
     angle = (angle + 15) % 360
 
-    -- Inicia um timer rápido para atualizar a tela
-    local timer = os.startTimer(0.3)
-    
-    -- Espera por um clique na tela ou o timer acabar
+    -- Atualiza a tela a cada 0.2 segundos
+    local timer = os.startTimer(0.2)
     local event, p1, p2, p3 = os.pullEvent()
 
+    -- Se o jogador clicar no monitor
     if event == "monitor_touch" then
         local clickX, clickY = p2, p3
-        -- Se o clique foi na região do botão superior esquerdo
+        -- Checa se o clique foi no botão superior esquerdo
         if clickY == 1 and clickX <= 25 then
             rIndex = rIndex + 1
             if rIndex > #ranges then rIndex = 1 end

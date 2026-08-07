@@ -1,5 +1,6 @@
 -- ==========================================
--- RADAR DE JOGADORES 3D - COMPUTERCRAFT (V4)
+-- RADAR DE JOGADORES 3D - COMPUTERCRAFT (V5)
+-- UI Profissional e Cliques Corrigidos
 -- ==========================================
 
 local detector = peripheral.find("player_detector")
@@ -14,29 +15,30 @@ if not monitor or not detector then
 end
 
 -- ==========================================
--- CONFIGURAÇÕES DA SUA BASE
+-- CONFIGURAÇÕES DA SUA BASE (MUDE AQUI)
 -- ==========================================
-local meuX = 0  -- Substitua pelo seu X
-local meuY = 0  -- Substitua pelo seu Y
-local meuZ = 0  -- Substitua pelo seu Z
+local meuX = 0
+local meuY = 0
+local meuZ = 0
 
--- Configurações de Controle
+-- Configurações
 local ranges = {200, 1000, 999999}
-local rangeNomes = {"200", "1000", "Inf"}
+local rangeNomes = {"200m", "1000m", "Infin"}
 local rIndex = 1
 
 local speeds = {2, 5, 12}
 local speedNomes = {"Lenta", "Normal", "Rapida"}
 local sIndex = 2
 
--- Prepara a Tela e o Buffer
+-- Tela e Buffer
 monitor.setTextScale(0.5)
 local w, h = monitor.getSize()
 local buffer = window.create(monitor, 1, 1, w, h, false)
 
+-- Centro reajustado por conta dos botões grandes
 local cx = math.floor(w / 2)
-local cy = math.floor(h / 2) + 1
-local radius = math.floor(math.min(cx / 1.5, cy)) - 3
+local cy = math.floor(h / 2) + 2
+local radius = math.floor(math.min(cx / 1.5, cy)) - 4
 local angle = 0
 
 local function drawRadar()
@@ -44,30 +46,49 @@ local function drawRadar()
     buffer.setBackgroundColor(colors.black)
     buffer.clear()
 
-    -- 1. Barra Superior de Interface (UI)
-    buffer.setCursorPos(1, 1)
-    buffer.setBackgroundColor(colors.gray)
-    buffer.write(string.rep(" ", w)) -- Preenche o fundo cinza
+    local meio = math.floor(w / 2)
 
-    -- Botão Alcance (Esquerda)
-    local txtAlc = " ALC: " .. rangeNomes[rIndex] .. " "
+    -- ==========================================
+    -- 1. UI - BOTOES DE CONTROLE (CAIXAS GRANDES)
+    -- ==========================================
+    
+    -- Botão Esquerdo (ALCANCE)
+    for y = 1, 2 do
+        buffer.setCursorPos(1, y)
+        buffer.setBackgroundColor(colors.gray)
+        buffer.write(string.rep(" ", meio))
+    end
     buffer.setCursorPos(2, 1)
-    buffer.setBackgroundColor(colors.gray)
+    buffer.setTextColor(colors.white)
+    buffer.write("ALCANCE:")
+    buffer.setCursorPos(2, 2)
     buffer.setTextColor(colors.yellow)
-    buffer.write(txtAlc)
+    buffer.write("> " .. rangeNomes[rIndex] .. " <")
 
-    -- Botão Velocidade (Direita)
-    local txtVel = " VEL: " .. speedNomes[sIndex] .. " "
-    buffer.setCursorPos(w - #txtVel, 1)
-    buffer.setBackgroundColor(colors.gray)
+    -- Botão Direito (VELOCIDADE)
+    local startX = meio + 1
+    local widthRight = w - meio
+    for y = 1, 2 do
+        buffer.setCursorPos(startX, y)
+        buffer.setBackgroundColor(colors.lightGray)
+        buffer.write(string.rep(" ", widthRight))
+    end
+    buffer.setCursorPos(startX + 1, 1)
+    buffer.setTextColor(colors.black)
+    buffer.write("VELOCIDADE:")
+    buffer.setCursorPos(startX + 1, 2)
     buffer.setTextColor(colors.cyan)
-    buffer.write(txtVel)
+    buffer.write("> " .. speedNomes[sIndex] .. " <")
 
     buffer.setBackgroundColor(colors.black)
 
-    -- 2. Rosa dos Ventos (Pontos Cardeais)
+    -- ==========================================
+    -- 2. DESENHO DO RADAR E LINHAS
+    -- ==========================================
+    
+    -- Rosa dos Ventos
     buffer.setTextColor(colors.gray)
-    buffer.setCursorPos(cx, math.max(2, cy - radius - 1))
+    buffer.setCursorPos(cx, math.max(4, cy - radius - 1))
     buffer.write("N")
     buffer.setCursorPos(cx, math.min(h, cy + radius + 1))
     buffer.write("S")
@@ -76,24 +97,24 @@ local function drawRadar()
     buffer.setCursorPos(math.max(1, cx - math.floor(radius * 1.5) - 1), cy)
     buffer.write("O")
 
-    -- 3. Círculo do Radar
+    -- Círculo Principal
     buffer.setTextColor(colors.green)
     for i = 0, 359, 10 do
         local rad = math.rad(i)
         local x = cx + math.floor(math.cos(rad) * radius * 1.5) 
         local y = cy + math.floor(math.sin(rad) * radius)
-        if x >= 1 and x <= w and y >= 2 and y <= h then
+        if x >= 1 and x <= w and y >= 4 and y <= h then
             buffer.setCursorPos(x, y)
             buffer.write(".")
         end
     end
 
-    -- 4. Centro (Sua Posição)
+    -- Centro
     buffer.setCursorPos(cx, cy)
     buffer.setTextColor(colors.white)
     buffer.write("X")
 
-    -- 5. Linha de Varredura Suave
+    -- Linha de Varredura
     for offset = 0, 2 do
         local sweepRad = math.rad(angle - (offset * 2))
         local col = (offset == 0) and colors.lime or colors.green
@@ -102,14 +123,16 @@ local function drawRadar()
         for r = 1, radius do
             local x = cx + math.floor(math.cos(sweepRad) * r * 1.5)
             local y = cy + math.floor(math.sin(sweepRad) * r)
-            if x >= 1 and x <= w and y >= 2 and y <= h and not (x == cx and y == cy) then
+            if x >= 1 and x <= w and y >= 4 and y <= h and not (x == cx and y == cy) then
                 buffer.setCursorPos(x, y)
                 buffer.write(offset == 0 and "+" or ".")
             end
         end
     end
 
-    -- 6. Detecção e Posição dos Jogadores
+    -- ==========================================
+    -- 3. JOGADORES NO MAPA
+    -- ==========================================
     local currentRange = ranges[rIndex]
     local success, players = pcall(detector.getOnlinePlayers)
     
@@ -133,18 +156,15 @@ local function drawRadar()
                     local px = cx + math.floor(dx * scale * 1.5)
                     local pz = cy + math.floor(dz * scale)
 
-                    if px >= 1 and px <= w and pz >= 2 and pz <= h then
-                        -- Ponto
+                    if px >= 1 and px <= w and pz >= 4 and pz <= h then
                         buffer.setCursorPos(px, pz)
                         buffer.setTextColor(colors.red)
                         buffer.write("O")
                         
-                        -- Nome
                         buffer.setCursorPos(math.max(1, px - math.floor(#nome / 2)), pz + 1)
                         buffer.setTextColor(colors.white)
                         buffer.write(nome)
                         
-                        -- Distância
                         local distText = math.floor(dist) .. "m"
                         buffer.setCursorPos(math.max(1, px - math.floor(#distText / 2)), pz + 2)
                         buffer.setTextColor(colors.lightGray)
@@ -159,49 +179,49 @@ local function drawRadar()
 end
 
 -- ==========================================
--- LOOP DE EVENTOS (GERENCIAMENTO DE ENTRADAS)
+-- GERENCIADOR DE EVENTOS (ROBUSTO)
 -- ==========================================
 
 term.clear()
 term.setCursorPos(1, 1)
-print("--------------------------------------")
-print(" RADAR ATIVO")
-print(" - Clique na barra superior do monitor")
-print(" - Pressione [F] no computador p/ sair")
-print("--------------------------------------")
+print("======================================")
+print(" RADAR INICIADO - SISTEMA ATIVO")
+print("======================================")
+print(" > Clique nos blocos no topo da tela")
+print(" > Pressione [F] aqui para desligar")
 
 local running = true
-local myTimer = os.startTimer(0.05)
+local updateTimer = os.startTimer(0.05)
 
 while running do
     local event, p1, p2, p3 = os.pullEvent()
 
-    -- 1. Atualização do Frame da Animação
-    if event == "timer" and p1 == myTimer then
+    -- Atualiza animação quando o timer estoura
+    if event == "timer" and p1 == updateTimer then
         angle = (angle + speeds[sIndex]) % 360
         drawRadar()
-        myTimer = os.startTimer(0.05) -- Inicia o próximo timer sincronizado
+        updateTimer = os.startTimer(0.05) 
 
-    -- 2. Clique no Monitor
+    -- Detecta o clique instantaneamente
     elseif event == "monitor_touch" then
         local clickX, clickY = p2, p3
         
-        -- Clicou na barra superior (linha 1)
-        if clickY == 1 then
+        -- Hitbox GIGANTE: Clicar em qualquer lugar das 3 primeiras linhas
+        if clickY <= 3 then
             local meio = math.floor(w / 2)
             if clickX <= meio then
-                -- Lado Esquerdo -> Alcance
                 rIndex = rIndex + 1
                 if rIndex > #ranges then rIndex = 1 end
             else
-                -- Lado Direito -> Velocidade
                 sIndex = sIndex + 1
                 if sIndex > #speeds then sIndex = 1 end
             end
-            drawRadar() -- Força a atualização visual imediata ao clicar
+            
+            -- Desenha a mudança imediatamente
+            drawRadar()
         end
 
-    -- 3. Tecla Pressionada no Computador
+    -- Desliga o radar ao apertar F
     elseif event == "key" then
         if p1 == keys.f then
             running = false
@@ -209,15 +229,13 @@ while running do
     end
 end
 
--- ==========================================
--- FINALIZAÇÃO E LIMPEZA
--- ==========================================
+-- Finaliza e limpa a tela
 monitor.setBackgroundColor(colors.black)
 monitor.clear()
 monitor.setCursorPos(1, 1)
 monitor.setTextColor(colors.red)
-monitor.write("RADAR DESLIGADO")
+monitor.write("SISTEMA DESLIGADO")
 
 term.setBackgroundColor(colors.black)
-term.setTextColor(colors.yellow)
-print("\nRadar encerrado com sucesso!")
+term.setTextColor(colors.green)
+print("\nDesligado com sucesso. Bom jogo!")

@@ -1,8 +1,7 @@
 -- ==========================================
--- RADAR DE JOGADORES 3D - COMPUTERCRAFT
+-- RADAR DE JOGADORES 3D - VERSAO PRO
 -- ==========================================
 
--- Conecta os periféricos
 local detector = peripheral.find("player_detector")
 local monitor = peripheral.find("monitor")
 
@@ -16,71 +15,103 @@ end
 
 -- ==========================================
 -- CONFIGURAÇÕES DA SUA BASE
--- Coloque as coordenadas reais do computador:
 -- ==========================================
-local meuX = 0  -- Substitua pelo seu X
-local meuY = 0  -- Substitua pelo seu Y (Altura)
-local meuZ = 0  -- Substitua pelo seu Z
+local meuX = 0
+local meuY = 0
+local meuZ = 0
 
--- Configurações de Alcance
+-- Configurações de Controle
 local ranges = {200, 1000, 999999}
-local rangeNomes = {"200", "1000", "Infinito"}
+local rangeNomes = {"200", "1000", "Inf"}
 local rIndex = 1
 
--- Configurações de Velocidade da Varredura
-local speeds = {5, 15, 35} -- Quantos graus a linha pula
+local speeds = {2, 5, 12} -- Diminuí os pulos pois a tela atualiza mais rápido agora
 local speedNomes = {"Lenta", "Normal", "Rapida"}
-local sIndex = 2 -- Começa na Normal
+local sIndex = 2
 
--- Prepara o monitor
+-- Configuração da Tela e Sistema Anti-Piscar (Buffer)
 monitor.setTextScale(0.5)
 local w, h = monitor.getSize()
+local buffer = window.create(monitor, 1, 1, w, h, false) -- Tela invisível
+
 local cx = math.floor(w / 2)
-local cy = math.floor(h / 2)
-local radius = math.min(cx, cy) - 2
+local cy = math.floor(h / 2) + 1 -- Desce o centro um pouco para compensar a barra superior
+local radius = math.floor(math.min(cx / 1.5, cy)) - 3
 local angle = 0
 
--- Função para desenhar a interface
 local function drawRadar()
-    monitor.setBackgroundColor(colors.black)
-    monitor.clear()
+    -- Começa a desenhar na tela invisível
+    buffer.setVisible(false)
+    buffer.setBackgroundColor(colors.black)
+    buffer.clear()
 
-    -- 1. Botão de Alcance
-    monitor.setCursorPos(1, 1)
-    monitor.setBackgroundColor(colors.gray)
-    monitor.setTextColor(colors.white)
-    monitor.write(" Alcance: " .. rangeNomes[rIndex] .. " ")
+    -- 1. Barra de Status Superior (UI)
+    buffer.setCursorPos(1, 1)
+    buffer.setBackgroundColor(colors.gray)
+    buffer.setTextColor(colors.white)
+    -- Preenche a linha inteira de cinza
+    buffer.write(string.rep(" ", w)) 
     
-    -- 2. Botão de Velocidade
-    monitor.setCursorPos(1, 2)
-    monitor.write(" Vel: " .. speedNomes[sIndex] .. " ")
-    monitor.setBackgroundColor(colors.black)
+    -- Botões na barra
+    buffer.setCursorPos(2, 1)
+    buffer.setTextColor(colors.lightGray)
+    buffer.write("ALCANCE: ")
+    buffer.setTextColor(colors.white)
+    buffer.write(rangeNomes[rIndex])
+    
+    buffer.setCursorPos(18, 1)
+    buffer.setTextColor(colors.lightGray)
+    buffer.write("VEL: ")
+    buffer.setTextColor(colors.white)
+    buffer.write(speedNomes[sIndex])
+    
+    buffer.setBackgroundColor(colors.black)
 
-    -- 3. Desenha o círculo fixo do radar
-    monitor.setTextColor(colors.green)
+    -- 2. Rosa dos Ventos (Pontos Cardeais)
+    buffer.setTextColor(colors.gray)
+    buffer.setCursorPos(cx, cy - radius - 1)
+    buffer.write("N")
+    buffer.setCursorPos(cx, cy + radius + 1)
+    buffer.write("S")
+    buffer.setCursorPos(cx + math.floor(radius * 1.5) + 1, cy)
+    buffer.write("L")
+    buffer.setCursorPos(cx - math.floor(radius * 1.5) - 1, cy)
+    buffer.write("O")
+
+    -- 3. Círculo do Radar
+    buffer.setTextColor(colors.green)
     for i = 0, 359, 10 do
         local rad = math.rad(i)
-        local x = cx + math.floor(math.cos(rad) * radius * 2) 
+        local x = cx + math.floor(math.cos(rad) * radius * 1.5) 
         local y = cy + math.floor(math.sin(rad) * radius)
-        if x >= 1 and x <= w and y >= 1 and y <= h then
-            monitor.setCursorPos(x, y)
-            monitor.write(".")
+        if x >= 1 and x <= w and y >= 2 and y <= h then
+            buffer.setCursorPos(x, y)
+            buffer.write(".")
         end
     end
 
-    -- 4. Desenha a linha de varredura
-    local sweepRad = math.rad(angle)
-    for r = 1, radius do
-        local x = cx + math.floor(math.cos(sweepRad) * r * 2)
-        local y = cy + math.floor(math.sin(sweepRad) * r)
-        if x >= 1 and x <= w and y >= 1 and y <= h then
-            monitor.setCursorPos(x, y)
-            monitor.setTextColor(colors.lime)
-            monitor.write("+")
+    -- 4. Centro do Radar (Você)
+    buffer.setCursorPos(cx, cy)
+    buffer.setTextColor(colors.white)
+    buffer.write("X")
+
+    -- 5. Linha de Varredura (Agora com um "rastro" sutil)
+    for offset = 0, 2 do
+        local sweepRad = math.rad(angle - (offset * 2))
+        local col = offset == 0 and colors.lime or colors.green
+        buffer.setTextColor(col)
+        
+        for r = 1, radius do
+            local x = cx + math.floor(math.cos(sweepRad) * r * 1.5)
+            local y = cy + math.floor(math.sin(sweepRad) * r)
+            if x >= 1 and x <= w and y >= 2 and y <= h and not (x == cx and y == cy) then
+                buffer.setCursorPos(x, y)
+                buffer.write(offset == 0 and "+" or ".")
+            end
         end
     end
 
-    -- 5. Busca os jogadores (Cálculo 3D)
+    -- 6. Detecção de Jogadores
     local currentRange = ranges[rIndex]
     local success, players = pcall(detector.getOnlinePlayers)
     
@@ -89,7 +120,6 @@ local function drawRadar()
             local successPos, pos = pcall(detector.getPlayerPos, nome)
             
             if successPos and pos and pos.x and pos.y and pos.z then
-                -- CÁLCULO 3D (Incluindo o eixo Y)
                 local dx = pos.x - meuX
                 local dy = pos.y - meuY
                 local dz = pos.z - meuZ
@@ -102,31 +132,32 @@ local function drawRadar()
                     end
                     
                     local scale = radius / visualRange
-                    local px = cx + math.floor(dx * scale * 2)
-                    local pz = cy + math.floor(dz * scale) -- Z vira o eixo vertical no mapa 2D
+                    local px = cx + math.floor(dx * scale * 1.5)
+                    local pz = cy + math.floor(dz * scale)
 
-                    -- Desenha o jogador se couber na tela
-                    if px >= 1 and px <= w and pz >= 1 and pz <= h then
-                        -- Ponto Vermelho
-                        monitor.setCursorPos(px, pz)
-                        monitor.setTextColor(colors.red)
-                        monitor.write("O")
+                    if px >= 1 and px <= w and pz >= 2 and pz <= h then
+                        -- Ponto
+                        buffer.setCursorPos(px, pz)
+                        buffer.setTextColor(colors.red)
+                        buffer.write("O")
                         
-                        -- Nome
-                        monitor.setCursorPos(math.max(1, px - math.floor(#nome / 2)), pz + 1)
-                        monitor.setTextColor(colors.white)
-                        monitor.write(nome)
+                        -- Nome e Distância
+                        buffer.setCursorPos(math.max(1, px - math.floor(#nome / 2)), pz + 1)
+                        buffer.setTextColor(colors.white)
+                        buffer.write(nome)
                         
-                        -- Coordenadas 3D (X, Y, Z)
-                        local coordText = math.floor(pos.x) .. "," .. math.floor(pos.y) .. "," .. math.floor(pos.z)
-                        monitor.setCursorPos(math.max(1, px - math.floor(#coordText / 2)), pz + 2)
-                        monitor.setTextColor(colors.lightGray)
-                        monitor.write(coordText)
+                        local distText = math.floor(dist) .. "m"
+                        buffer.setCursorPos(math.max(1, px - math.floor(#distText / 2)), pz + 2)
+                        buffer.setTextColor(colors.lightGray)
+                        buffer.write(distText)
                     end
                 end
             end
         end
     end
+
+    -- Atualiza o monitor real instantaneamente com o que foi desenhado no buffer
+    buffer.setVisible(true)
 end
 
 -- ==========================================
@@ -135,27 +166,25 @@ end
 while true do
     drawRadar()
     
-    -- Gira a linha com a velocidade selecionada
     angle = (angle + speeds[sIndex]) % 360
 
-    -- Atualização mais rápida para a animação ficar fluida
-    local timer = os.startTimer(0.1)
+    -- Timer ultrarrápido graças ao buffer
+    local timer = os.startTimer(0.05)
     local event, p1, p2, p3 = os.pullEvent()
 
-    -- Cliques na tela
     if event == "monitor_touch" then
         local clickX, clickY = p2, p3
         
-        -- Botão 1: Alcance (Linha 1)
-        if clickY == 1 and clickX <= 22 then
-            rIndex = rIndex + 1
-            if rIndex > #ranges then rIndex = 1 end
-        end
-        
-        -- Botão 2: Velocidade (Linha 2)
-        if clickY == 2 and clickX <= 22 then
-            sIndex = sIndex + 1
-            if sIndex > #speeds then sIndex = 1 end
+        if clickY == 1 then
+            -- Se clicar na área do Alcance
+            if clickX <= 15 then
+                rIndex = rIndex + 1
+                if rIndex > #ranges then rIndex = 1 end
+            -- Se clicar na área da Velocidade
+            elseif clickX >= 16 and clickX <= 30 then
+                sIndex = sIndex + 1
+                if sIndex > #speeds then sIndex = 1 end
+            end
         end
     end
 end

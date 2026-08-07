@@ -16,9 +16,9 @@ end
 -- ==========================================
 -- CONFIGURAÇÕES DA SUA BASE
 -- ==========================================
-local meuX = 0
-local meuY = 0
-local meuZ = 0
+local meuX = -573
+local meuY = 57
+local meuZ = -1446
 
 -- Configurações de Controle
 local ranges = {200, 1000, 999999}

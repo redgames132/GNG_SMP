@@ -4,7 +4,7 @@
 
 -- Conecta os periféricos
 local monitor = peripheral.find("monitor")
-local detector = peripheral.find("playerDetector")
+local detector = peripheral.find("player_detector")
 
 if not monitor then
     print("ERRO: Monitor não encontrado!")

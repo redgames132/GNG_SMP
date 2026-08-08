@@ -53,13 +53,13 @@ local startTime = os.clock()
 -- Sistema JARVIS
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Equipe, mantenham a estamina alta para evasao.",
-    "JARVIS: Defesa de perimetro ativada. Monitorando a base.",
-    "JARVIS: Trabalhem em conjunto. O fogo cruzado e letal.",
-    "JARVIS: Acompanhe os indicadores de elevacao no radar.",
-    "JARVIS: O cenario atual favorece emboscadas. Atencao.",
-    "JARVIS: Varredura termica conjunta nao detectou anomalias.",
-    "JARVIS: Rede neural estabilizada entre os operadores."
+    "JARVIS: Saggin",
+    "JARVIS: Homem misterioso.",
+    "JARVIS: Tung tung.",
+    "JARVIS: Meu pe.",
+    "JARVIS: Kalip.",
+    "JARVIS: Redarelhada de aco.",
+    "JARVIS: PimPimPong."
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0

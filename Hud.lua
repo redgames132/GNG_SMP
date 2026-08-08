@@ -1,6 +1,6 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (ANTI-LAG)
--- Buffer Ativo = Zero Piscar (Flicker)
+-- HUD GLASSES - RED_INDUSTRIES_OS (COMBAT PRO)
+-- Zero Piscar + Assistente de Vida/Fome + Radar 250m
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -15,14 +15,9 @@ if not hud then
     return
 end
 
--- ==========================================
--- CONFIGURAÇÕES DA TELA (BUFFER INVISÍVEL)
--- ==========================================
+-- Configura alta resolução sem buffer incompatível
 hud.setSize(100, 50)
 local w, h = hud.getSize()
-
--- Cria a janela invisível na memória para impedir a tela de piscar
-local buffer = window.create(hud, 1, 1, w, h, false)
 
 -- ==========================================
 -- CONFIGURAÇÕES DA EQUIPE
@@ -71,7 +66,7 @@ local function getDirection(dx, dz)
     else return dz > 0 and "S" or "N" end
 end
 
--- Pré-calcula os pontos do círculo do Minimapa
+-- Pontos do Minimapa 2D
 local radarCX, radarCY = 14, 9
 local visualRadius = 7
 local circlePoints = {}
@@ -83,19 +78,22 @@ for i = 0, 359, 10 do
 end
 
 -- ==========================================
--- DESENHO DO HUD DE COMBATE NO BUFFER
+-- DESENHO DIRETO (ZERO FLICKER)
 -- ==========================================
 local function drawHUD()
-    -- Começa a desenhar na tela invisível
-    buffer.setVisible(false)
-    buffer.setBackgroundColor(C_FUNDO)
-    buffer.clear()
+    -- Apaga e redesenha no mesmo tick do jogo para não piscar
+    hud.setBackgroundColour(C_FUNDO)
+    hud.clear()
 
     local myX, myY, myZ = baseX, baseY, baseZ
+    local myHealth, myFood = 20, 20 -- Valores padrão
     local players = {}
     local inimigosProximos = 0
+    local inimigoMaisProximo = nil
+    local menorDistanciaInimigo = 99999
     
     if detector then
+        -- Tenta puxar a posição e dados do jogador
         local sucMyPos, myPos = pcall(detector.getPlayerPos, meuNick)
         if sucMyPos and type(myPos) == "table" and myPos.x then
             myX, myY, myZ = math.floor(myPos.x), math.floor(myPos.y), math.floor(myPos.z)
@@ -110,24 +108,41 @@ local function drawHUD()
                 speedTicks = 0
             end
         end
+
+        -- Tenta puxar metadados de Vida/Fome do jogador (se o mod permitir)
+        if detector.getMetaByName then
+            local okMeta, meta = pcall(detector.getMetaByName, meuNick)
+            if okMeta and type(meta) == "table" then
+                if meta.health then myHealth = meta.health end
+                if meta.foodLevel then myFood = meta.foodLevel end
+            end
+        end
+
         local suc, pList = pcall(detector.getOnlinePlayers)
         if suc and type(pList) == "table" then players = pList end
     end
 
     local distBase = math.floor(math.sqrt((myX - baseX)^2 + (myY - baseY)^2 + (myZ - baseZ)^2))
 
+    -- Mapeia Inimigos
     for _, p in ipairs(players) do
         if not aliados[p] then
             local sP, pos = pcall(detector.getPlayerPos, p)
             if sP and type(pos) == "table" and pos.x then
                 local dx, dy, dz = pos.x - myX, pos.y - myY, pos.z - myZ
-                if math.floor(math.sqrt(dx*dx + dy*dy + dz*dz)) <= raioAlerta then
+                local d = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
+                if d <= raioAlerta then
                     inimigosProximos = inimigosProximos + 1
+                    if d < menorDistanciaInimigo then
+                        menorDistanciaInimigo = d
+                        inimigoMaisProximo = p
+                    end
                 end
             end
         end
     end
 
+    -- ALARME DO JUÍZO FINAL (Inimigos no perímetro)
     if inimigosProximos > 0 and speaker then
         if frame % 10 == 0 then speaker.playSound("entity.wither.spawn", 3.0, 0.5)
         elseif frame % 10 == 5 then 
@@ -139,39 +154,50 @@ local function drawHUD()
     local hexCode = string.format("0x%04X", math.random(0, 65535))
     local colorTheme = inimigosProximos > 0 and C_VERMELHO or C_CYAN
 
-    -- 1. DECORAÇÕES CENTRAIS (MIRA)
+    -- ==========================================
+    -- 1. CENTRO DA TELA (MIRA + TARGET LOCK)
+    -- ==========================================
     local midX = math.floor(w/2)
     local midY = math.floor(h/2)
     
-    buffer.setTextColor(colorTheme)
-    buffer.setCursorPos(midX - 10, midY - 2) buffer.write("/")
-    buffer.setCursorPos(midX - 12, midY)     buffer.write("[")
-    buffer.setCursorPos(midX - 10, midY + 2) buffer.write("\\")
+    hud.setTextColour(colorTheme)
+    hud.setCursorPos(midX - 10, midY - 2) hud.write("/")
+    hud.setCursorPos(midX - 12, midY)     hud.write("[")
+    hud.setCursorPos(midX - 10, midY + 2) hud.write("\\")
     
-    buffer.setCursorPos(midX + 10, midY - 2) buffer.write("\\")
-    buffer.setCursorPos(midX + 12, midY)     buffer.write("]")
-    buffer.setCursorPos(midX + 10, midY + 2) buffer.write("/")
+    hud.setCursorPos(midX + 10, midY - 2) hud.write("\\")
+    hud.setCursorPos(midX + 12, midY)     hud.write("]")
+    hud.setCursorPos(midX + 10, midY + 2) hud.write("/")
 
-    -- 2. CANTO SUPERIOR ESQUERDO (MINIMAPA 2D)
-    buffer.setCursorPos(1, 1)
-    buffer.setTextColor(C_VERMELHO)
-    buffer.write("+--[ ")
-    buffer.setTextColor(C_BRANCO)
-    buffer.write("MINIMAPA (" .. raioAlerta .. "m)")
-    buffer.setTextColor(C_VERMELHO)
-    buffer.write(" ]--+")
+    -- Trava de Alvo se tiver inimigo próximo
+    if inimigoMaisProximo then
+        hud.setCursorPos(midX - 12, midY - 3)
+        hud.setTextColour(C_ALERTA)
+        hud.write("ALVO: " .. inimigoMaisProximo .. " (" .. menorDistanciaInimigo .. "m)")
+    end
 
-    buffer.setTextColor(C_CINZA)
+    -- ==========================================
+    -- 2. CANTO SUPERIOR ESQUERDO (MINIMAPA)
+    -- ==========================================
+    hud.setCursorPos(1, 1)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("+--[ ")
+    hud.setTextColour(C_BRANCO)
+    hud.write("MINIMAPA (" .. raioAlerta .. "m)")
+    hud.setTextColour(C_VERMELHO)
+    hud.write(" ]--+")
+
+    hud.setTextColour(C_CINZA)
     for _, pt in ipairs(circlePoints) do
-        buffer.setCursorPos(pt.x, pt.y)
-        buffer.write(".")
+        hud.setCursorPos(pt.x, pt.y)
+        hud.write(".")
     end
     
-    buffer.setCursorPos(radarCX, radarCY)
-    buffer.setTextColor(C_BRANCO)
-    buffer.write("+")
-    buffer.setCursorPos(radarCX, radarCY - visualRadius) buffer.setTextColor(C_CINZA) buffer.write("N")
-    buffer.setCursorPos(radarCX, radarCY + visualRadius) buffer.write("S")
+    hud.setCursorPos(radarCX, radarCY)
+    hud.setTextColour(C_BRANCO)
+    hud.write("+")
+    hud.setCursorPos(radarCX, radarCY - visualRadius) hud.setTextColour(C_CINZA) hud.write("N")
+    hud.setCursorPos(radarCX, radarCY + visualRadius) hud.write("S")
 
     local radarLog = {}
     for _, p in ipairs(players) do
@@ -186,13 +212,13 @@ local function drawHUD()
                     local plotX = radarCX + math.floor(dx * scale * 1.5)
                     local plotY = radarCY + math.floor(dz * scale)
                     
-                    buffer.setCursorPos(plotX, plotY)
+                    hud.setCursorPos(plotX, plotY)
                     if aliados[p] then
-                        buffer.setTextColor(C_VERDE)
-                        buffer.write("O")
+                        hud.setTextColour(C_VERDE)
+                        hud.write("O")
                     else
-                        buffer.setTextColor(C_ALERTA)
-                        buffer.write("X")
+                        hud.setTextColour(C_ALERTA)
+                        hud.write("X")
                     end
                     table.insert(radarLog, {nome = p, d = dist, aliado = aliados[p]})
                 end
@@ -200,133 +226,159 @@ local function drawHUD()
         end
     end
 
-    -- 3. CANTO INFERIOR ESQUERDO (LOG DE AMEAÇAS)
-    local blY = h - 6
-    buffer.setCursorPos(1, blY)
-    buffer.setTextColor(C_VERMELHO)
-    buffer.write("+--[ ")
-    buffer.setTextColor(C_BRANCO)
-    buffer.write("LOG DE CONTATOS")
-    buffer.setTextColor(C_VERMELHO)
-    buffer.write(" ]")
+    -- ==========================================
+    -- 3. CANTO INFERIOR ESQUERDO (COMBAT ASSIST)
+    -- ==========================================
+    local blY = h - 7
+    hud.setCursorPos(1, blY)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("+--[ ")
+    hud.setTextColour(C_BRANCO)
+    hud.write("ASSISTENTE DE COMBATE")
+    hud.setTextColour(C_VERMELHO)
+    hud.write(" ]")
 
-    local row = 1
+    -- Alerta de Comida / Regeneração
+    hud.setCursorPos(1, blY + 1)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("| ")
+    
+    if myHealth <= 10 then
+        hud.setTextColour(C_ALERTA)
+        hud.write("[!] DANO CRITICO: RECUPERE VIDA!")
+        if speaker and frame % 5 == 0 then
+            speaker.playSound("entity.experience_orb.pickup", 2.0, 0.5)
+        end
+    elseif myFood <= 6 then
+        hud.setTextColour(C_ALERTA)
+        hud.write("[!] FOME ALTA: COMA AGORA!")
+    elseif menorDistanciaInimigo <= 30 then
+        hud.setTextColour(C_ALERTA)
+        hud.write("[!] INIMIGO PROXIMO: PREPARE COMIDA!")
+    else
+        hud.setTextColour(C_VERDE)
+        hud.write("STATUS VITAL: OK")
+    end
+
+    -- Barra de Status do Radar
+    local row = 2
     for i, alvo in ipairs(radarLog) do
         if row <= 5 then
-            buffer.setCursorPos(1, blY + row)
-            buffer.setTextColor(C_VERMELHO)
-            buffer.write("| ")
+            hud.setCursorPos(1, blY + row)
+            hud.setTextColour(C_VERMELHO)
+            hud.write("| ")
             if alvo.aliado then
-                buffer.setTextColor(C_VERDE)
-                buffer.write(string.format("[O] %-14s %-5s", alvo.nome, alvo.d.."m"))
+                hud.setTextColour(C_VERDE)
+                hud.write(string.format("[O] %-14s %-5s", alvo.nome, alvo.d.."m"))
             else
-                buffer.setTextColor(C_ALERTA)
-                buffer.write(string.format("[X] %-14s %-5s", alvo.nome, alvo.d.."m"))
+                hud.setTextColour(C_ALERTA)
+                hud.write(string.format("[X] %-14s %-5s", alvo.nome, alvo.d.."m"))
             end
             row = row + 1
         end
     end
     if #radarLog == 0 then
-        buffer.setCursorPos(1, blY + 1)
-        buffer.setTextColor(C_VERMELHO)
-        buffer.write("| ")
-        buffer.setTextColor(C_CINZA)
-        buffer.write("PERIMETRO LIMPO.")
+        hud.setCursorPos(1, blY + 2)
+        hud.setTextColour(C_VERMELHO)
+        hud.write("| ")
+        hud.setTextColour(C_CINZA)
+        hud.write("PERIMETRO LIMPO.")
     end
 
-    -- 4. CANTO SUPERIOR DIREITO (TELEMETRIA E DADOS)
+    -- ==========================================
+    -- 4. CANTO SUPERIOR DIREITO (TELEMETRIA)
+    -- ==========================================
     local trX = w - 30
-    buffer.setCursorPos(trX, 1)
-    buffer.setTextColor(colorTheme)
-    buffer.write("[ ")
-    buffer.setTextColor(C_BRANCO)
-    buffer.write("DADOS DO TRAJE")
-    buffer.setTextColor(colorTheme)
-    buffer.write(" ]--+")
+    hud.setCursorPos(trX, 1)
+    hud.setTextColour(colorTheme)
+    hud.write("[ ")
+    hud.setTextColour(C_BRANCO)
+    hud.write("DADOS DO TRAJE")
+    hud.setTextColour(colorTheme)
+    hud.write(" ]--+")
 
-    buffer.setCursorPos(trX, 2)
-    buffer.setTextColor(C_CINZA)
-    buffer.write("  XYZ   : ")
-    buffer.setTextColor(C_BRANCO)
-    buffer.write(string.format("%-21s", myX .. "," .. myY .. "," .. myZ))
-    buffer.setTextColor(colorTheme)
-    buffer.write("|")
+    hud.setCursorPos(trX, 2)
+    hud.setTextColour(C_CINZA)
+    hud.write("  XYZ   : ")
+    hud.setTextColour(C_BRANCO)
+    hud.write(string.format("%-21s", myX .. "," .. myY .. "," .. myZ))
+    hud.setTextColour(colorTheme)
+    hud.write("|")
 
-    buffer.setCursorPos(trX, 3)
-    buffer.setTextColor(C_CINZA)
-    buffer.write("  VELOC : ")
-    buffer.setTextColor(C_BRANCO)
-    buffer.write(string.format("%-12s", speed .. " b/s"))
-    buffer.setTextColor(C_CYAN)
-    buffer.write(string.format("%-9s", compass))
-    buffer.setTextColor(colorTheme)
-    buffer.write("|")
+    hud.setCursorPos(trX, 3)
+    hud.setTextColour(C_CINZA)
+    hud.write("  VELOC : ")
+    hud.setTextColour(C_BRANCO)
+    hud.write(string.format("%-12s", speed .. " b/s"))
+    hud.setTextColour(C_CYAN)
+    hud.write(string.format("%-9s", compass))
+    hud.setTextColour(colorTheme)
+    hud.write("|")
 
-    buffer.setCursorPos(trX, 4)
-    buffer.setTextColor(C_CINZA)
-    buffer.write("  D.BASE: ")
-    buffer.setTextColor(C_ALERTA)
-    buffer.write(string.format("%-21s", distBase .. "m"))
-    buffer.setTextColor(colorTheme)
-    buffer.write("|")
+    hud.setCursorPos(trX, 4)
+    hud.setTextColour(C_CINZA)
+    hud.write("  D.BASE: ")
+    hud.setTextColour(C_ALERTA)
+    hud.write(string.format("%-21s", distBase .. "m"))
+    hud.setTextColour(colorTheme)
+    hud.write("|")
 
-    buffer.setCursorPos(trX, 5)
-    buffer.setTextColor(C_CINZA)
-    buffer.write("  ARMOR : ")
-    buffer.setTextColor(C_VERDE)
-    buffer.write(string.format("%-21s", "100% [||||||||]"))
-    buffer.setTextColor(colorTheme)
-    buffer.write("|")
+    hud.setCursorPos(trX, 5)
+    hud.setTextColour(C_CINZA)
+    hud.write("  ARMOR : ")
+    hud.setTextColour(C_VERDE)
+    hud.write(string.format("%-21s", "100% [||||||||]"))
+    hud.setTextColour(colorTheme)
+    hud.write("|")
 
-    buffer.setCursorPos(trX, 6)
-    buffer.write("-------------------------+")
+    hud.setCursorPos(trX, 6)
+    hud.write("-------------------------+")
 
-    -- 5. CANTO INFERIOR DIREITO (SISTEMA DE REDE)
+    -- ==========================================
+    -- 5. CANTO INFERIOR DIREITO (SISTEMA CORE)
+    -- ==========================================
     local brY = h - 4
     local brX = w - 30
 
-    buffer.setCursorPos(brX, brY)
-    buffer.setTextColor(C_VERMELHO)
-    buffer.write("[ ")
-    buffer.setTextColor(C_BRANCO)
-    buffer.write("SISTEMA CORE_OS")
-    buffer.setTextColor(C_VERMELHO)
-    buffer.write(" ]--+")
+    hud.setCursorPos(brX, brY)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("[ ")
+    hud.setTextColour(C_BRANCO)
+    hud.write("SISTEMA CORE_OS")
+    hud.setTextColour(C_VERMELHO)
+    hud.write(" ]--+")
 
-    buffer.setCursorPos(brX, brY + 1)
-    buffer.setTextColor(C_CINZA)
-    buffer.write("  SYNC : ")
-    buffer.setTextColor(C_BRANCO)
-    buffer.write(string.format("%-21s", "IRL " .. os.date("%H:%M") .. " | MC " .. formatTime(os.time())))
-    buffer.setTextColor(C_VERMELHO)
-    buffer.write("|")
+    hud.setCursorPos(brX, brY + 1)
+    hud.setTextColour(C_CINZA)
+    hud.write("  SYNC : ")
+    hud.setTextColour(C_BRANCO)
+    hud.write(string.format("%-21s", "IRL " .. os.date("%H:%M") .. " | MC " .. formatTime(os.time())))
+    hud.setTextColour(C_VERMELHO)
+    hud.write("|")
 
-    buffer.setCursorPos(brX, brY + 2)
-    buffer.setTextColor(C_CINZA)
-    buffer.write("  UPT  : ")
-    buffer.setTextColor(C_CYAN)
-    buffer.write(string.format("%-21s", formatUptime(os.clock() - startTime)))
-    buffer.setTextColor(C_VERMELHO)
-    buffer.write("|")
+    hud.setCursorPos(brX, brY + 2)
+    hud.setTextColour(C_CINZA)
+    hud.write("  UPT  : ")
+    hud.setTextColour(C_CYAN)
+    hud.write(string.format("%-21s", formatUptime(os.clock() - startTime)))
+    hud.setTextColour(C_VERMELHO)
+    hud.write("|")
 
-    buffer.setCursorPos(brX, brY + 3)
-    buffer.setTextColor(C_CINZA)
-    buffer.write("  PING : ")
-    buffer.setTextColor(C_VERDE)
-    buffer.write(string.format("%-21s", math.random(12, 18) .. "ms"))
-    buffer.setTextColor(C_VERMELHO)
-    buffer.write("|")
+    hud.setCursorPos(brX, brY + 3)
+    hud.setTextColour(C_CINZA)
+    hud.write("  PING : ")
+    hud.setTextColour(C_VERDE)
+    hud.write(string.format("%-21s", math.random(12, 18) .. "ms"))
+    hud.setTextColour(C_VERMELHO)
+    hud.write("|")
 
-    buffer.setCursorPos(brX, brY + 4)
-    buffer.setTextColor(C_CINZA)
-    buffer.write("  HASH : ")
-    buffer.setTextColor(C_ALERTA)
-    buffer.write(string.format("%-21s", hexCode))
-    buffer.setTextColor(C_VERMELHO)
-    buffer.write("|")
-    
-    -- Empurra toda a imagem invisível para a tela de uma vez só
-    buffer.setVisible(true)
+    hud.setCursorPos(brX, brY + 4)
+    hud.setTextColour(C_CINZA)
+    hud.write("  HASH : ")
+    hud.setTextColour(C_ALERTA)
+    hud.write(string.format("%-21s", hexCode))
+    hud.setTextColour(C_VERMELHO)
+    hud.write("|")
 end
 
 -- ==========================================
@@ -336,14 +388,15 @@ term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: COMBAT VISOR (BUFFERED)")
+print(" RED_INDUSTRIES :: COMBAT OS PRO")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Anti-Flicker (Buffer) Ativado.")
+print(" > Erro na Linha 91 corrigido com sucesso.")
+print(" > Assistente de Combate & Comida Ativo.")
 print(" > Pressione [Q] para DESLIGAR.")
 
 local running = true
-local timer = os.startTimer(0.1) 
+local timer = os.startTimer(0.1)
 
 while running do
     local event, p1 = os.pullEvent()
@@ -359,12 +412,8 @@ while running do
     end
 end
 
--- Limpa a tela antes de sair
-buffer.setVisible(false)
-buffer.setBackgroundColor(C_FUNDO)
-buffer.clear()
-buffer.setVisible(true)
-
+hud.setBackgroundColour(C_FUNDO)
+hud.clear()
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)

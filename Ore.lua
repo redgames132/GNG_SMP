@@ -1,5 +1,5 @@
 -- ==========================================
--- RED_INDUSTRIES - POCKET SCANNER AUTO
+-- RED_INDUSTRIES - POCKET SCANNER ULTRA-RÁPIDO
 -- ==========================================
 
 local scanner = peripheral.find("geo_scanner") or peripheral.find("geoScanner")
@@ -14,12 +14,11 @@ if not scanner then
     return
 end
 
-local radius = 8 -- Raio padrão do Scanner (altere se tiver upgrade)
+local radius = 8
 local ores = {}
 local status = "INICIANDO SISTEMA..."
 local w, h = term.getSize()
 
--- Centraliza no espaço livre da tela (descontando as 2 linhas de baixo)
 local cx = math.floor(w / 2)
 local cy = math.floor((h - 2) / 2) 
 
@@ -45,18 +44,16 @@ local function drawRadar()
     term.setBackgroundColor(colors.black)
     term.clear()
 
-    -- 1. Centro (Sua Posição)
+    -- Centro
     term.setCursorPos(cx, cy)
     term.setTextColor(colors.white)
     term.write("X")
 
-    -- 2. Desenhar Minérios (Tela Cheia)
+    -- Minérios
     for _, b in ipairs(ores) do
-        -- Escala X expandida para aproveitar a largura da tela do pocket
         local px = cx + math.floor(b.x * 1.5)
         local py = cy + b.z
         
-        -- Desenha apenas se estiver dentro da área livre do mapa
         if px >= 1 and px <= w and py >= 1 and py <= h - 2 then
             if not (px == cx and py == cy) then
                 term.setCursorPos(px, py)
@@ -68,14 +65,14 @@ local function drawRadar()
     
     term.setBackgroundColor(colors.black)
 
-    -- 3. Explicações e Legenda no Fundo
+    -- Legenda Inferior
     term.setCursorPos(1, h - 1)
     term.setTextColor(colors.lightGray)
     term.write(" [Q] Sair | Raio: " .. radius .. "m ")
     
-    -- 4. Barra de Status Dinâmica
+    -- Status
     term.setCursorPos(1, h)
-    term.write(string.rep(" ", w)) -- Limpa a linha
+    term.write(string.rep(" ", w))
     term.setCursorPos(1, h)
     
     if string.find(status, "ERRO") then
@@ -107,17 +104,16 @@ local function doScan()
         end
         status = "CONCLUIDO: " .. #ores .. " encontrados"
     else
-        -- Geralmente erro de Cooldown por escanear rápido demais
+        -- Se o servidor achar que está muito rápido, ele avisa aqui
         status = "ERRO: " .. (err or "Recarregando...") 
     end
     drawRadar()
 end
 
 -- ==========================================
--- GERENCIADOR DE EVENTOS (AUTOMÁTICO)
+-- LOOP ULTRA-RÁPIDO
 -- ==========================================
 local running = true
--- Dispara o primeiro scan imediatamente (0 segundos)
 local scanTimer = os.startTimer(0) 
 
 drawRadar()
@@ -127,8 +123,8 @@ while running do
     
     if event == "timer" and p1 == scanTimer then
         doScan()
-        -- Configura o próximo scan para 1.5s depois para não bugar o mod
-        scanTimer = os.startTimer(1.5)
+        -- Atualiza a cada 0.5 segundos (Velocidade Máxima Segura)
+        scanTimer = os.startTimer(0.5)
         
     elseif event == "key" then
         if p1 == keys.q then

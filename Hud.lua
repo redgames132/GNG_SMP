@@ -1,6 +1,6 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (HOLO)
--- Design Holografico, Cores Neon, Zero Tijolos
+-- HUD GLASSES - RED_INDUSTRIES_OS (HOLO V2)
+-- UI Aprimorada + Jarvis Frequente
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -33,7 +33,7 @@ local aliados = {
     ["cadipadi"] = true
 }
 
--- Cores (Paleta Neon para Alto Contraste)
+-- Paleta Neon
 local C_TRANS = 0
 local C_VERMELHO = colors.red
 local C_BRANCO = colors.white
@@ -45,22 +45,27 @@ local C_AZUL_CLARO = colors.lightBlue
 
 local lastX, lastY, lastZ = nil, nil, nil
 local speed, speedTicks = 0, 0
-local compass = "-"
 local frame = 0
 local startTime = os.clock()
 
+-- Banco de Dados do Jarvis (Expandido)
 local jarvisDicas = {
-    "DICA: Estamina alta e crucial para evasao.",
-    "DICA: Minimapa operando em capacidade maxima.",
-    "DICA: Recuo tatico e uma estrategia valida.",
-    "DICA: Parametros vitais sob monitoramento.",
-    "DICA: O cenario atual favorece armadilhas."
+    "JARVIS: Mantenha sua estamina alta para evasao.",
+    "JARVIS: O minimapa e a sua maior vantagem.",
+    "JARVIS: Recuo tatico e uma estrategia valida.",
+    "JARVIS: Parametros vitais sob monitoramento.",
+    "JARVIS: O cenario atual favorece armadilhas.",
+    "JARVIS: Mapeamento do perimetro concluido.",
+    "JARVIS: Sistemas operando em capacidade maxima.",
+    "JARVIS: Lembre-se de manter o equipamento reparado.",
+    "JARVIS: Varredura termica nao detectou anomalias.",
+    "JARVIS: Rede neural sincronizada com a base."
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0
 local jarvisTempoTela = 0
 
-local radarCX, radarCY = 14, 10
+local radarCX, radarCY = 14, 9
 local visualRadius = 7
 local circlePoints = {}
 for i = 0, 359, 15 do
@@ -83,15 +88,7 @@ local function formatUptime(seconds)
     return string.format("%02d:%02d", m, s)
 end
 
-local function getDirection(dx, dz)
-    if dx == 0 and dz == 0 then return compass end
-    if math.abs(dx) > math.abs(dz) then return dx > 0 and "LESTE" or "OESTE"
-    else return dz > 0 and "SUL" or "NORTE" end
-end
-
--- ==========================================
--- FUNÇÃO MÁGICA: ESCREVE E APAGA O FUNDO
--- ==========================================
+-- Função para escrever sem piscar a tela
 local function writeData(x, y, label, colLabel, value, colValue, pad)
     hud.setCursorPos(x, y)
     hud.setTextColour(colLabel)
@@ -100,12 +97,11 @@ local function writeData(x, y, label, colLabel, value, colValue, pad)
     local str = tostring(value)
     local emptySpace = pad - #str
     if emptySpace < 0 then emptySpace = 0 end
-    -- O espaço em branco no final garante que os números antigos sumam sem tela preta!
     hud.write(str .. string.rep(" ", emptySpace))
 end
 
 -- ==========================================
--- 1. DESENHO ESTÁTICO (RODA UMA VEZ)
+-- 1. DESENHO ESTÁTICO (MOLDURAS E TÍTULOS)
 -- ==========================================
 local function drawStaticHUD()
     hud.setBackgroundColour(C_TRANS)
@@ -114,27 +110,20 @@ local function drawStaticHUD()
     local midX = math.floor(w/2)
     local midY = math.floor(h/2)
     
-    -- Mira Central (Mais limpa e holográfica)
+    -- Mira Central (Estilo Jato de Combate)
     hud.setTextColour(C_CYAN)
-    hud.setCursorPos(midX - 1, midY) hud.write("-")
-    hud.setCursorPos(midX + 1, midY) hud.write("-")
-    hud.setCursorPos(midX, midY - 1) hud.write("|")
-    hud.setCursorPos(midX, midY + 1) hud.write("|")
+    hud.setCursorPos(midX - 4, midY) hud.write("---")
+    hud.setCursorPos(midX + 2, midY) hud.write("---")
+    hud.setCursorPos(midX, midY - 2) hud.write("|")
+    hud.setCursorPos(midX, midY + 2) hud.write("|")
+    hud.setCursorPos(midX, midY) hud.setTextColour(C_AMARELO) hud.write("+")
 
-    -- Títulos principais
+    -- Títulos Futuristas
     hud.setTextColour(C_AZUL_CLARO)
-    hud.setCursorPos(1, 1) hud.write("RADAR TÁTICO")
-    hud.setCursorPos(w - 20, 1) hud.write("TELEMETRIA")
-    hud.setCursorPos(1, h - 8) hud.write("SISTEMAS VITAIS")
-    hud.setCursorPos(w - 20, h - 5) hud.write("RED_OS CORE")
-
-    -- Bússola Decorativa Superior
-    hud.setCursorPos(midX - 15, 2)
-    hud.setTextColour(C_BRANCO)
-    hud.write("-W- - - - -NW- - - - -N- - - - -NE- - - - -E-")
-    hud.setCursorPos(midX, 1)
-    hud.setTextColour(C_AMARELO)
-    hud.write("V")
+    hud.setCursorPos(1, 1) hud.write("<< RADAR_TATICO >>")
+    hud.setCursorPos(w - 22, 1) hud.write("<< TELEMETRIA >>")
+    hud.setCursorPos(1, h - 8) hud.write("<< SINAIS_VITAIS >>")
+    hud.setCursorPos(w - 22, h - 5) hud.write("<< CORE_SYSTEM >>")
 end
 
 -- ==========================================
@@ -168,7 +157,6 @@ local function updateDynamicHUD()
             if speedTicks >= 10 then 
                 local dx, dy, dz = myX - lastX, myY - lastY, myZ - lastZ
                 speed = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
-                if speed > 0 then compass = getDirection(dx, dz) end
                 lastX, lastY, lastZ = myX, myY, myZ
                 speedTicks = 0
             end
@@ -215,21 +203,23 @@ local function updateDynamicHUD()
 
     local midX, midY = math.floor(w/2), math.floor(h/2)
 
-    -- Alvo e Direção no Centro
+    -- Alvo na Mira
     if inimigoMaisProximo then
-        writeData(midX - 10, midY - 3, "ALVO: ", C_ALERTA, inimigoMaisProximo .. " ("..menorDistanciaInimigo.."m)", C_VERMELHO, 20)
+        writeData(midX - 10, midY - 4, "ALVO :: ", C_ALERTA, inimigoMaisProximo .. " ("..menorDistanciaInimigo.."m)", C_VERMELHO, 20)
     else
-        writeData(midX - 10, midY - 3, "", C_ALERTA, "", C_VERMELHO, 25)
+        writeData(midX - 10, midY - 4, "", C_ALERTA, "", C_VERMELHO, 28)
     end
-    writeData(midX - 2, midY + 3, "", C_BRANCO, compass, C_AMARELO, 10)
 
-    -- Jarvis (Centro Inferior)
+    -- ==========================================
+    -- JARVIS (FREQUÊNCIA AUMENTADA)
+    -- ==========================================
     if jarvisAtual == "" then
-        if spawnRisk and math.random(1, 150) == 1 then
+        -- A chance agora é de 1 em 80 frames (Fala com muito mais frequência)
+        if spawnRisk and math.random(1, 40) == 1 then
             jarvisAtual = "ALERTA: Area escura detectada. Hostis iminentes."
             jarvisProgresso = 0
             jarvisTempoTela = 60
-        elseif math.random(1, 300) == 1 then
+        elseif math.random(1, 80) == 1 then
             jarvisAtual = jarvisDicas[math.random(1, #jarvisDicas)]
             jarvisProgresso = 0
             jarvisTempoTela = 60
@@ -251,7 +241,9 @@ local function updateDynamicHUD()
         writeData(midX - 25, midY + 8, "", C_BRANCO, "", C_CYAN, 50)
     end
 
-    -- Limpeza do Radar e Redesenho
+    -- ==========================================
+    -- MINIMAPA (LIMPEZA E ATUALIZAÇÃO)
+    -- ==========================================
     for rY = radarCY - 7, radarCY + 7 do
         hud.setCursorPos(radarCX - 12, rY)
         hud.write("                        ")
@@ -274,7 +266,9 @@ local function updateDynamicHUD()
         end
     end
 
-    -- Assistente Vital (Inferior Esquerdo)
+    -- ==========================================
+    -- SINAIS VITAIS (INFERIOR ESQUERDO)
+    -- ==========================================
     local blY = h - 7
     if myHealth <= 10 then writeData(1, blY + 1, "[!]", C_VERMELHO, " DANO CRITICO", C_VERMELHO, 20)
     elseif spawnRisk then writeData(1, blY + 1, "[!]", C_ALERTA, " RISCO DE SPAWN ("..currentLight..")", C_ALERTA, 20)
@@ -285,9 +279,9 @@ local function updateDynamicHUD()
     local printados = 0
     for _, alvo in ipairs(dadosRadar) do
         if alvo.d <= raioAlerta and printados < 4 then
-            local icon = alvo.aliado and "[ALIADO] " or "[HOSTIL] "
+            local icon = alvo.aliado and "[ALIADO]" or "[HOSTIL]"
             local col = alvo.aliado and C_VERDE or C_ALERTA
-            writeData(1, blY + row, icon, col, string.sub(alvo.nome, 1, 10) .. " " .. alvo.d .. "m", C_BRANCO, 25)
+            writeData(1, blY + row, icon, col, " " .. string.sub(alvo.nome, 1, 10) .. " " .. alvo.d .. "m", C_BRANCO, 25)
             row = row + 1
             printados = printados + 1
         end
@@ -296,18 +290,22 @@ local function updateDynamicHUD()
         writeData(1, blY + r, "", C_BRANCO, "", C_BRANCO, 25)
     end
 
-    -- Telemetria (Superior Direita)
-    local trX = w - 20
-    writeData(trX, 2, "POS: ", C_AZUL_CLARO, myX..","..myY..","..myZ, C_BRANCO, 15)
-    writeData(trX, 3, "VEL: ", C_AZUL_CLARO, speed .. " b/s", C_BRANCO, 15)
-    writeData(trX, 4, "BIO: ", C_AZUL_CLARO, string.sub(currentBiome, 1, 12), C_BRANCO, 15)
-    writeData(trX, 5, "LUZ: ", C_AZUL_CLARO, currentLight .. "/15", spawnRisk and C_ALERTA or C_VERDE, 15)
+    -- ==========================================
+    -- TELEMETRIA (SUPERIOR DIREITO)
+    -- ==========================================
+    local trX = w - 22
+    writeData(trX, 3, "POS :: ", C_AZUL_CLARO, myX..","..myY..","..myZ, C_BRANCO, 15)
+    writeData(trX, 4, "VEL :: ", C_AZUL_CLARO, speed .. " b/s", C_BRANCO, 15)
+    writeData(trX, 5, "BIO :: ", C_AZUL_CLARO, string.sub(currentBiome, 1, 12), C_BRANCO, 15)
+    writeData(trX, 6, "LUZ :: ", C_AZUL_CLARO, currentLight .. "/15", spawnRisk and C_ALERTA or C_VERDE, 15)
 
-    -- Core OS (Inferior Direito)
+    -- ==========================================
+    -- CORE OS (INFERIOR DIREITO)
+    -- ==========================================
     local brY = h - 4
-    writeData(trX, brY + 1, "MC : ", C_AZUL_CLARO, formatTime(os.time()), C_BRANCO, 15)
-    writeData(trX, brY + 2, "IRL: ", C_AZUL_CLARO, os.date("%H:%M"), C_BRANCO, 15)
-    writeData(trX, brY + 3, "UPT: ", C_AZUL_CLARO, formatUptime(os.clock() - startTime), C_BRANCO, 15)
+    writeData(trX, brY + 1, "MC  :: ", C_AZUL_CLARO, formatTime(os.time()), C_BRANCO, 15)
+    writeData(trX, brY + 2, "IRL :: ", C_AZUL_CLARO, os.date("%H:%M"), C_BRANCO, 15)
+    writeData(trX, brY + 3, "UPT :: ", C_AZUL_CLARO, formatUptime(os.clock() - startTime), C_BRANCO, 15)
 end
 
 -- ==========================================
@@ -317,11 +315,11 @@ term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: HOLOGRAPHIC OS")
+print(" RED_INDUSTRIES :: HOLOGRAPHIC V2")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Visual Limpo (Zero Tijolos).")
-print(" > Cores Neon de Alto Contraste.")
+print(" > Bússola removida.")
+print(" > Frequência do Jarvis aumentada.")
 print(" > Pressione [Q] para DESLIGAR.")
 
 drawStaticHUD() 

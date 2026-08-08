@@ -28,7 +28,7 @@ local aliados = {
     ["redgames132"] = true,
     ["KAIOX_NEGROX"] = true,
     ["goonerstickle69"] = true,
-    ["cadipadi"] = true
+
 }
 
 local baseX, baseY, baseZ = -573, 57, -1446

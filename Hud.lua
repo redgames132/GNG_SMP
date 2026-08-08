@@ -1,6 +1,6 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (HOLO V2)
--- UI Aprimorada + Jarvis Frequente
+-- HUD GLASSES - RED_INDUSTRIES_OS (HOLO V3)
+-- Mira Calibravel + Jarvis Frequente
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -20,7 +20,7 @@ hud.setSize(100, 50)
 local w, h = hud.getSize()
 
 -- ==========================================
--- CONFIGURAÇÕES
+-- CONFIGURAÇÕES DA BASE E EQUIPE
 -- ==========================================
 local meuNick = "redgames132"
 local raioAlerta = 250
@@ -32,6 +32,13 @@ local aliados = {
     ["goonerstickle69"] = true,
     ["cadipadi"] = true
 }
+
+-- ==========================================
+-- CALIBRAGEM DA MIRA (AJUSTE AQUI)
+-- ==========================================
+-- Se a mira estiver torta, mude estes valores (ex: 1, -1, 2, -2)
+local offsetMiraX = 0 
+local offsetMiraY = 0 
 
 -- Paleta Neon
 local C_TRANS = 0
@@ -48,7 +55,7 @@ local speed, speedTicks = 0, 0
 local frame = 0
 local startTime = os.clock()
 
--- Banco de Dados do Jarvis (Expandido)
+-- Banco de Dados do Jarvis
 local jarvisDicas = {
     "JARVIS: Mantenha sua estamina alta para evasao.",
     "JARVIS: O minimapa e a sua maior vantagem.",
@@ -88,7 +95,6 @@ local function formatUptime(seconds)
     return string.format("%02d:%02d", m, s)
 end
 
--- Função para escrever sem piscar a tela
 local function writeData(x, y, label, colLabel, value, colValue, pad)
     hud.setCursorPos(x, y)
     hud.setTextColour(colLabel)
@@ -101,16 +107,17 @@ local function writeData(x, y, label, colLabel, value, colValue, pad)
 end
 
 -- ==========================================
--- 1. DESENHO ESTÁTICO (MOLDURAS E TÍTULOS)
+-- 1. DESENHO ESTÁTICO 
 -- ==========================================
 local function drawStaticHUD()
     hud.setBackgroundColour(C_TRANS)
     hud.clear()
 
-    local midX = math.floor(w/2)
-    local midY = math.floor(h/2)
+    -- Aplica a Calibragem da Mira
+    local midX = math.floor(w/2) + offsetMiraX
+    local midY = math.floor(h/2) + offsetMiraY
     
-    -- Mira Central (Estilo Jato de Combate)
+    -- Mira Central
     hud.setTextColour(C_CYAN)
     hud.setCursorPos(midX - 4, midY) hud.write("---")
     hud.setCursorPos(midX + 2, midY) hud.write("---")
@@ -201,7 +208,9 @@ local function updateDynamicHUD()
         elseif frame % 10 == 5 then speaker.playSound("entity.ghast.scream", 3.0, 0.6) end
     end
 
-    local midX, midY = math.floor(w/2), math.floor(h/2)
+    -- Centro da tela com calibragem aplicada ao Alvo e Jarvis
+    local midX = math.floor(w/2) + offsetMiraX
+    local midY = math.floor(h/2) + offsetMiraY
 
     -- Alvo na Mira
     if inimigoMaisProximo then
@@ -211,10 +220,9 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- JARVIS (FREQUÊNCIA AUMENTADA)
+    -- JARVIS
     -- ==========================================
     if jarvisAtual == "" then
-        -- A chance agora é de 1 em 80 frames (Fala com muito mais frequência)
         if spawnRisk and math.random(1, 40) == 1 then
             jarvisAtual = "ALERTA: Area escura detectada. Hostis iminentes."
             jarvisProgresso = 0
@@ -267,7 +275,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- SINAIS VITAIS (INFERIOR ESQUERDO)
+    -- SINAIS VITAIS 
     -- ==========================================
     local blY = h - 7
     if myHealth <= 10 then writeData(1, blY + 1, "[!]", C_VERMELHO, " DANO CRITICO", C_VERMELHO, 20)
@@ -291,7 +299,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- TELEMETRIA (SUPERIOR DIREITO)
+    -- TELEMETRIA E CORE
     -- ==========================================
     local trX = w - 22
     writeData(trX, 3, "POS :: ", C_AZUL_CLARO, myX..","..myY..","..myZ, C_BRANCO, 15)
@@ -299,9 +307,6 @@ local function updateDynamicHUD()
     writeData(trX, 5, "BIO :: ", C_AZUL_CLARO, string.sub(currentBiome, 1, 12), C_BRANCO, 15)
     writeData(trX, 6, "LUZ :: ", C_AZUL_CLARO, currentLight .. "/15", spawnRisk and C_ALERTA or C_VERDE, 15)
 
-    -- ==========================================
-    -- CORE OS (INFERIOR DIREITO)
-    -- ==========================================
     local brY = h - 4
     writeData(trX, brY + 1, "MC  :: ", C_AZUL_CLARO, formatTime(os.time()), C_BRANCO, 15)
     writeData(trX, brY + 2, "IRL :: ", C_AZUL_CLARO, os.date("%H:%M"), C_BRANCO, 15)
@@ -315,11 +320,10 @@ term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: HOLOGRAPHIC V2")
+print(" RED_INDUSTRIES :: HOLOGRAPHIC V3")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Bússola removida.")
-print(" > Frequência do Jarvis aumentada.")
+print(" > Calibragem de Mira Inserida.")
 print(" > Pressione [Q] para DESLIGAR.")
 
 drawStaticHUD() 

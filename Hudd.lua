@@ -57,15 +57,15 @@ local startTime = os.clock()
 -- Sistema JARVIS
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Mantenha sua estamina alta para evasao.",
-    "JARVIS: O minimapa e a sua maior vantagem.",
-    "JARVIS: Recuo tatico e uma estrategia valida.",
-    "JARVIS: Parametros vitais sob monitoramento.",
-    "JARVIS: O cenario atual favorece armadilhas.",
-    "JARVIS: Mapeamento do perimetro concluido.",
-    "JARVIS: Varredura termica nao detectou anomalias.",
-    "JARVIS: Rede neural sincronizada com a base.",
-    "JARVIS: Odometro registrando movimentacao."
+    "JARVIS: Saggin.",
+    "JARVIS: Nigga.",
+    "JARVIS: Se um nigget vale por um nigger quanto vale um saggin?",
+    "JARVIS: Quantas gulas enchem um ovo?",
+    "JARVIS: Cuidado com o homem misteriroso.",
+    "JARVIS: O homem sabido que sabia das coisas esta com fome.",
+    "JARVIS: /gulaish kalipano.",
+    "JARVIS: Cuidado com o porco velho.",
+    "JARVIS: Quantas Gulas cabem num Pe?"
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0

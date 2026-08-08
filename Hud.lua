@@ -24,7 +24,7 @@ hud.setSize(100, 50)
 -- ==========================================
 -- CONFIGURAÇÕES 
 -- ==========================================
-local meuNick = "redgames132" -- NÃO ESQUEÇA DE MUDAR!
+local meuNick = "SEU_NICK_AQUI" -- NÃO ESQUEÇA DE MUDAR!
 local raioAlerta = 50
 
 -- Coordenadas do Centro da sua Base

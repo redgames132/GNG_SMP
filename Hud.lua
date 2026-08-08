@@ -1,10 +1,11 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (NANO)
--- Resolucao aumentada = Letras menores!
+-- HUD GLASSES - RED_INDUSTRIES_OS (DEFESA)
+-- UI Nano + Sistema de Aliados e Alarme
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
 local detector = peripheral.find("player_detector")
+local speaker = peripheral.find("speaker") -- NECESSÁRIO PARA O SOM!
 
 if not hud then
     term.clear()
@@ -14,20 +15,21 @@ if not hud then
     return
 end
 
--- ==========================================
--- O SEGREDO DO TAMANHO (RESOLUÇÃO)
--- Aumentar a resolução faz as letras encolherem na sua tela!
--- Se ficar MUITO pequeno, mude para (80, 40).
--- ==========================================
-hud.setSize(100, 50)
+hud.setSize(100, 50) -- Resolução que deixa a UI pequena
 
 -- ==========================================
--- CONFIGURAÇÕES 
+-- CONFIGURAÇÕES (MUDE AQUI)
 -- ==========================================
-local meuNick = "SEU_NICK_AQUI" -- NÃO ESQUEÇA DE MUDAR!
-local raioAlerta = 50
+local meuNick = "SEU_NICK_AQUI"
+local raioAlerta = 100
 
--- Coordenadas do Centro da sua Base
+-- Lista do seu Time (Coloque os nicks dos seus amigos como true)
+local aliados = {
+    [meuNick] = true,
+    ["AMIGO_1"] = true,
+    ["AMIGO_2"] = true
+}
+
 local baseX, baseY, baseZ = -573, 57, -1446
 
 -- Cores
@@ -39,11 +41,10 @@ local C_ALERTA = colors.orange
 local C_CYAN = colors.cyan
 local C_VERDE = colors.lime
 
--- Sistema de Rastreamento (Velocidade e Bússola)
 local lastX, lastY, lastZ = nil, nil, nil
-local speed = 0
-local speedTicks = 0
+local speed, speedTicks = 0, 0
 local compass = "-"
+local frame = 0
 
 local function formatTime(t)
     local hora = math.floor(t)
@@ -51,14 +52,10 @@ local function formatTime(t)
     return string.format("%02d:%02d", hora, min)
 end
 
--- Função que descobre para onde você está andando
 local function getDirection(dx, dz)
     if dx == 0 and dz == 0 then return compass end
-    if math.abs(dx) > math.abs(dz) then
-        return dx > 0 and "LESTE" or "OESTE"
-    else
-        return dz > 0 and "SUL" or "NORTE"
-    end
+    if math.abs(dx) > math.abs(dz) then return dx > 0 and "LESTE" or "OESTE"
+    else return dz > 0 and "SUL" or "NORTE" end
 end
 
 local function drawHUD()
@@ -68,21 +65,20 @@ local function drawHUD()
     local myX, myY, myZ = baseX, baseY, baseZ
     local totalPlayers = 0
     local players = {}
-    local ameaças = 0
+    local inimigosProximos = 0
     
     if detector then
         local sucMyPos, myPos = pcall(detector.getPlayerPos, meuNick)
-        if sucMyPos and myPos and myPos.x then
+        -- CORREÇÃO DA LINHA 71: type(myPos) == "table" previne o crash!
+        if sucMyPos and type(myPos) == "table" and myPos.x then
             myX, myY, myZ = math.floor(myPos.x), math.floor(myPos.y), math.floor(myPos.z)
             
-            -- Atualiza Velocidade e Direção
             if lastX == nil then lastX, lastY, lastZ = myX, myY, myZ end
             speedTicks = speedTicks + 1
-            if speedTicks >= 4 then -- Atualiza a cada 1 segundo
+            if speedTicks >= 4 then 
                 local dx, dy, dz = myX - lastX, myY - lastY, myZ - lastZ
                 speed = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
                 if speed > 0 then compass = getDirection(dx, dz) end
-                
                 lastX, lastY, lastZ = myX, myY, myZ
                 speedTicks = 0
             end
@@ -95,12 +91,9 @@ local function drawHUD()
         end
     end
 
-    -- Calcula a distância até a sua base
     local distBase = math.floor(math.sqrt((myX - baseX)^2 + (myY - baseY)^2 + (myZ - baseZ)^2))
 
-    -- ==========================================
-    -- LINHA 1: Red OS | Bússola | Hora
-    -- ==========================================
+    -- LINHA 1
     hud.setCursorPos(1, 1)
     hud.setTextColour(C_VERMELHO)
     hud.write("[RED_OS] ")
@@ -113,9 +106,7 @@ local function drawHUD()
     hud.setTextColour(C_BRANCO)
     hud.write(formatTime(os.time()))
 
-    -- ==========================================
-    -- LINHA 2: Coord | Vel | Distância da Base
-    -- ==========================================
+    -- LINHA 2
     hud.setCursorPos(1, 2)
     hud.setTextColour(C_CINZA)
     hud.write("XYZ: ")
@@ -130,52 +121,59 @@ local function drawHUD()
     hud.setTextColour(C_ALERTA)
     hud.write(distBase .. "m")
 
-    -- ==========================================
-    -- LINHAS 3+: Radar Dinâmico
-    -- ==========================================
+    -- LINHAS 3+ (Radar)
     if detector then
         local row = 4
         
-        -- Primeiro verifica as ameaças antes de desenhar
+        -- Conta inimigos e dispara alarme
         for _, p in ipairs(players) do
-            if p ~= meuNick then
+            if not aliados[p] then
                 local sP, pos = pcall(detector.getPlayerPos, p)
-                if sP and pos and pos.x then
+                if sP and type(pos) == "table" and pos.x then
                     local dx, dy, dz = pos.x - myX, pos.y - myY, pos.z - myZ
                     if math.floor(math.sqrt(dx*dx + dy*dy + dz*dz)) <= raioAlerta then
-                        ameaças = ameaças + 1
+                        inimigosProximos = inimigosProximos + 1
                     end
                 end
             end
+        end
+
+        -- Alarme Sonoro (Apita a cada 1 segundo se tiver inimigo e Speaker conectado)
+        if inimigosProximos > 0 and speaker and (frame % 4 == 0) then
+            speaker.playNote("bell", 3, 12) -- Toca um sino agudo
         end
 
         -- Cabeçalho do Radar
         hud.setCursorPos(1, 3)
         hud.setTextColour(C_VERMELHO)
         hud.write("RADAR(" .. raioAlerta .. "m) [")
-        hud.setTextColour(ameaças > 0 and C_VERMELHO or C_VERDE)
-        hud.write(ameaças > 0 and "ALERTA" or "SEGURO")
+        hud.setTextColour(inimigosProximos > 0 and C_VERMELHO or C_VERDE)
+        hud.write(inimigosProximos > 0 and "INVASOR DETECTADO" or "SEGURO")
         hud.setTextColour(C_VERMELHO)
         hud.write("]")
 
-        -- Desenha os jogadores
+        -- Desenha jogadores
         local mostrados = 0
         for _, p in ipairs(players) do
             if p ~= meuNick then
                 local sP, pos = pcall(detector.getPlayerPos, p)
-                if sP and pos and pos.x then
+                if sP and type(pos) == "table" and pos.x then
                     local dx, dy, dz = pos.x - myX, pos.y - myY, pos.z - myZ
                     local dist = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
                     
                     hud.setCursorPos(1, row)
                     
                     if dist <= raioAlerta then
-                        hud.setTextColour(C_ALERTA)
-                        hud.write(" ! " .. p .. " (" .. dist .. "m)")
+                        if aliados[p] then
+                            hud.setTextColour(C_VERDE)
+                            hud.write(" + " .. p .. " (" .. dist .. "m)")
+                        else
+                            hud.setTextColour(C_ALERTA)
+                            hud.write(" ! " .. p .. " (" .. dist .. "m)")
+                        end
                         row = row + 1
                         mostrados = mostrados + 1
                     elseif mostrados < 3 then 
-                        -- Mostra no máximo 3 pessoas longe só para não ficar vazio
                         hud.setTextColour(C_CINZA)
                         hud.write(" - " .. p .. " (" .. dist .. "m)")
                         row = row + 1
@@ -190,14 +188,15 @@ local function drawHUD()
 end
 
 -- ==========================================
--- LOOP PRINCIPAL (TECLA Q PARA SAIR)
+-- LOOP PRINCIPAL
 -- ==========================================
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
-print("RED_INDUSTRIES HUD - ALTA RESOLUCAO")
+print("RED_INDUSTRIES HUD - SISTEMA DE DEFESA")
 term.setTextColor(colors.white)
-print(" > Fonte reduzida e painel encolhido.")
+print(" > Alarme sonoro pronto (Requer Speaker).")
+print(" > Aliados configurados.")
 print(" > Pressione [Q] para SAIR.")
 
 local running = true
@@ -208,6 +207,7 @@ while running do
 
     if event == "timer" and p1 == timer then
         drawHUD()
+        frame = frame + 1
         timer = os.startTimer(0.25)
     elseif event == "key" then
         if p1 == keys.q then
@@ -216,7 +216,6 @@ while running do
     end
 end
 
--- Limpeza
 hud.setBackgroundColour(C_FUNDO)
 hud.clear()
 term.clear()

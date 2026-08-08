@@ -60,7 +60,7 @@ local jarvisDicas = {
     "JARVIS: Meu pe.",
     "JARVIS: Kalip.",
     "JARVIS: Redarelhada de aco.",
-    "JARVIS: PimPimPong."
+    "JARVIS: PimPimPong.",
     "JARVIS: Lembre se de alimentar o seu homem misterioso"
 }
 local jarvisAtual = ""

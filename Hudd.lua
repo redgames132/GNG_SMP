@@ -1,6 +1,6 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (HOLO V5.1)
--- Sistema de Donos (Furtividade) + Moldura
+-- HUD GLASSES - RED_INDUSTRIES_OS (DUO-CORE)
+-- Sistema Co-Op + Radar de Base + Jarvis
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -20,28 +20,34 @@ hud.setSize(100, 50)
 local w, h = hud.getSize()
 
 -- ==========================================
--- CONFIGURAÇÕES 
+-- CONFIGURAÇÕES DA EQUIPE
 -- ==========================================
-local meuNick = "redgames132"
-local raioAlerta = 250
+-- Coordenadas do Centro do Radar (A sua Base)
 local baseX, baseY, baseZ = -573, 57, -1446
+local raioAlerta = 250
 
 local offsetMiraX = 0  
 local offsetMiraY = 1  
 
--- DONOS DO SISTEMA (Ficam invisíveis no radar)
-local donosDoSistema = {
-    ["redgames132"] = true,
-    ["cadipadi"] = true
+-- Os Operadores do Sistema (Mostrados na tela e invisíveis no radar)
+local operadores = {
+    "redgames132",
+    "cadipadi"
 }
 
--- ALIADOS COMUNS (Aparecem em Verde)
+-- Tracker individual para velocidade e posição
+local tracker = {
+    ["redgames132"] = {lastX = nil, lastY = nil, lastZ = nil, speed = 0, online = false, hp = 20, food = 20, x = 0, y = 0, z = 0},
+    ["cadipadi"]    = {lastX = nil, lastY = nil, lastZ = nil, speed = 0, online = false, hp = 20, food = 20, x = 0, y = 0, z = 0}
+}
+
+-- Aliados comuns (Aparecem no radar como 'O' Verde)
 local aliados = {
     ["KAIOX_NEGROX"] = true,
     ["goonerstickle69"] = true
 }
 
--- Paleta Neon Holográfica
+-- Paleta Holográfica
 local C_TRANS = 0
 local C_VERMELHO = colors.red
 local C_BRANCO = colors.white
@@ -52,25 +58,20 @@ local C_VERDE = colors.lime
 local C_AZUL_CLARO = colors.lightBlue
 local C_CINZA = colors.gray
 
-local lastX, lastY, lastZ = nil, nil, nil
-local speed, speedTicks = 0, 0
-local totalDistance = 0 
 local frame = 0
+local speedTicks = 0
 local startTime = os.clock()
 
 -- Sistema JARVIS
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Mantenha sua estamina alta para evasao.",
-    "JARVIS: O minimapa e a sua maior vantagem.",
-    "JARVIS: Recuo tatico e uma estrategia valida.",
-    "JARVIS: Parametros vitais sob monitoramento.",
-    "JARVIS: O cenario atual favorece armadilhas.",
-    "JARVIS: Mapeamento do perimetro concluido.",
-    "JARVIS: Varredura termica nao detectou anomalias.",
-    "JARVIS: Rede neural sincronizada com a base.",
-    "JARVIS: Cadipadi operando em modo furtivo.",
-    "JARVIS: Odometro registrando movimentacao."
+    "JARVIS: Equipe, mantenham a estamina alta para evasao.",
+    "JARVIS: Defesa de perimetro ativada. Monitorando a base.",
+    "JARVIS: Trabalhem em conjunto. O fogo cruzado e letal.",
+    "JARVIS: Parametros vitais da equipe sob monitoramento.",
+    "JARVIS: O cenario atual favorece emboscadas. Atencao.",
+    "JARVIS: Varredura termica conjunta nao detectou anomalias.",
+    "JARVIS: Rede neural sincronizada entre os operadores."
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0
@@ -117,6 +118,8 @@ local function writeData(x, y, label, colLabel, value, colValue, pad)
 end
 
 local function getProgressBar(valor, maximo, tamanho)
+    if valor < 0 then valor = 0 end
+    if valor > maximo then valor = maximo end
     local preenchido = math.floor((valor / maximo) * tamanho)
     local vazio = tamanho - preenchido
     return "[" .. string.rep("|", preenchido) .. string.rep(".", vazio) .. "]"
@@ -130,18 +133,22 @@ local function drawStaticHUD()
     hud.clear()
 
     hud.setTextColour(C_AZUL_CLARO)
-    hud.setCursorPos(1, 1) hud.write("+==[ RADAR ]======================-")
+    -- Topo Esquerdo
+    hud.setCursorPos(1, 1) hud.write("+==[ RADAR DA BASE ]==============-")
     hud.setCursorPos(1, 2) hud.write("||")
     hud.setCursorPos(1, 3) hud.write("||")
 
-    hud.setCursorPos(w - 34, 1) hud.write("-===================[ TELEMETRIA ]==+")
+    -- Topo Direito
+    hud.setCursorPos(w - 38, 1) hud.write("-===================[ TELEMETRIA ]==+")
     hud.setCursorPos(w - 1, 2) hud.write("||")
     hud.setCursorPos(w - 1, 3) hud.write("||")
 
+    -- Fundo Esquerdo
     hud.setCursorPos(1, h - 2) hud.write("||")
     hud.setCursorPos(1, h - 1) hud.write("||")
-    hud.setCursorPos(1, h)     hud.write("+==[ VITAIS ]=====================-")
+    hud.setCursorPos(1, h)     hud.write("+==[ EQUIPE E VITAIS ]============-")
 
+    -- Fundo Direito
     hud.setCursorPos(w - 1, h - 2) hud.write("||")
     hud.setCursorPos(w - 1, h - 1) hud.write("||")
     hud.setCursorPos(w - 34, h)    hud.write("-======================[ CORE OS ]==+")
@@ -159,8 +166,6 @@ end
 local function updateDynamicHUD()
     hud.setBackgroundColour(C_TRANS)
 
-    local myX, myY, myZ = baseX, baseY, baseZ
-    local myHealth, myFood = 20, 20
     local inimigosProximos = 0
     local inimigoMaisProximo = nil
     local menorDistanciaInimigo = 99999
@@ -169,43 +174,53 @@ local function updateDynamicHUD()
     local currentBiome, currentLight = "OFFLINE", 15
     local spawnRisk = false
 
+    -- Ambiente
     if env then
         pcall(function() currentBiome = env.getBiome() end)
         pcall(function() currentLight = env.getLightLevel() end)
         if currentLight < 7 then spawnRisk = true end
     end
     
+    -- Leitura dos Operadores e Ameaças
     if detector then
-        local sucMyPos, myPos = pcall(detector.getPlayerPos, meuNick)
-        if sucMyPos and type(myPos) == "table" and myPos.x then
-            myX, myY, myZ = math.floor(myPos.x), math.floor(myPos.y), math.floor(myPos.z)
-            if lastX == nil then lastX, lastY, lastZ = myX, myY, myZ end
-            speedTicks = speedTicks + 1
-            if speedTicks >= 10 then 
-                local dx, dy, dz = myX - lastX, myY - lastY, myZ - lastZ
-                speed = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
-                totalDistance = totalDistance + speed 
-                lastX, lastY, lastZ = myX, myY, myZ
-                speedTicks = 0
-            end
-        end
+        -- Reseta o status online
+        for _, op in ipairs(operadores) do tracker[op].online = false end
 
-        if detector.getPlayer then
-            local okMeta, meta = pcall(detector.getPlayer, meuNick)
-            if okMeta and type(meta) == "table" then
-                if meta.health then myHealth = tonumber(meta.health) end
-                if meta.foodLevel then myFood = tonumber(meta.foodLevel) end
-            end
-        end
-
+        speedTicks = speedTicks + 1
+        
         local suc, pList = pcall(detector.getOnlinePlayers)
         if suc and type(pList) == "table" then
             for _, p in ipairs(pList) do
-                -- MAGIA ACONTECE AQUI: Ignora totalmente quem está na lista de "donos"
-                if not donosDoSistema[p] then
-                    local sP, pos = pcall(detector.getPlayerPos, p)
-                    if sP and type(pos) == "table" and pos.x then
-                        local dx, dy, dz = pos.x - myX, pos.y - myY, pos.z - myZ
+                local sP, pos = pcall(detector.getPlayerPos, p)
+                if sP and type(pos) == "table" and pos.x then
+                    
+                    -- Se for um dos donos, atualiza a telemetria deles
+                    if tracker[p] then
+                        tracker[p].online = true
+                        tracker[p].x, tracker[p].y, tracker[p].z = math.floor(pos.x), math.floor(pos.y), math.floor(pos.z)
+                        
+                        -- Lógica de velocidade
+                        if tracker[p].lastX == nil then
+                            tracker[p].lastX, tracker[p].lastY, tracker[p].lastZ = tracker[p].x, tracker[p].y, tracker[p].z
+                        end
+                        if speedTicks >= 10 then
+                            local dx, dy, dz = tracker[p].x - tracker[p].lastX, tracker[p].y - tracker[p].lastY, tracker[p].z - tracker[p].lastZ
+                            tracker[p].speed = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
+                            tracker[p].lastX, tracker[p].lastY, tracker[p].lastZ = tracker[p].x, tracker[p].y, tracker[p].z
+                        end
+
+                        -- Puxa HP e Fome
+                        if detector.getPlayer then
+                            local okMeta, meta = pcall(detector.getPlayer, p)
+                            if okMeta and type(meta) == "table" then
+                                if meta.health then tracker[p].hp = tonumber(meta.health) end
+                                if meta.foodLevel then tracker[p].food = tonumber(meta.foodLevel) end
+                            end
+                        end
+                    
+                    -- Se não for dono, é aliado ou inimigo (Vai pro radar)
+                    else
+                        local dx, dy, dz = pos.x - baseX, pos.y - baseY, pos.z - baseZ
                         local dist = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
                         local isAliado = aliados[p] == true
                         table.insert(dadosRadar, {nome = p, d = dist, dx = dx, dz = dz, aliado = isAliado})
@@ -221,6 +236,7 @@ local function updateDynamicHUD()
                 end
             end
         end
+        if speedTicks >= 10 then speedTicks = 0 end
     end
 
     table.sort(dadosRadar, function(a, b) return a.d < b.d end)
@@ -233,6 +249,7 @@ local function updateDynamicHUD()
     local midX = math.floor(w/2) + offsetMiraX
     local midY = math.floor(h/2) + offsetMiraY
 
+    -- Alvo travado (relativo à base)
     if inimigoMaisProximo then
         writeData(midX - 12, midY - 2, ">> ALVO: ", C_ALERTA, inimigoMaisProximo .. " ("..menorDistanciaInimigo.."m)", C_VERMELHO, 25)
     else
@@ -245,7 +262,7 @@ local function updateDynamicHUD()
     if jarvisAtivo then
         if jarvisAtual == "" then
             if spawnRisk and math.random(1, 40) == 1 then
-                jarvisAtual = "ALERTA: Nivel de luz critico. Hostis iminentes."
+                jarvisAtual = "ALERTA: Luz baixa no perimetro. Risco de invasao."
                 jarvisProgresso = 0
                 jarvisTempoTela = 60
             elseif math.random(1, 80) == 1 then
@@ -274,7 +291,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- MINIMAPA
+    -- MINIMAPA (CENTRO = BASE)
     -- ==========================================
     for rY = radarCY - 7, radarCY + 7 do
         hud.setCursorPos(radarCX - 12, rY)
@@ -285,7 +302,8 @@ local function updateDynamicHUD()
     for _, pt in ipairs(circlePoints) do
         hud.setCursorPos(pt.x, pt.y) hud.write(".")
     end
-    hud.setCursorPos(radarCX, radarCY) hud.setTextColour(C_AMARELO) hud.write("+")
+    -- O centro agora representa a sua Base, não o jogador
+    hud.setCursorPos(radarCX, radarCY) hud.setTextColour(C_AMARELO) hud.write("B")
 
     for _, alvo in ipairs(dadosRadar) do
         if alvo.d <= raioAlerta then
@@ -299,16 +317,34 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- SINAIS VITAIS
+    -- SINAIS VITAIS DA EQUIPE
     -- ==========================================
-    local blY = h - 10
-    local barHP = getProgressBar(myHealth, 20, 10)
-    local barFood = getProgressBar(myFood, 20, 10)
-    local barThreat = getProgressBar(math.min(inimigosProximos, 5), 5, 10)
+    local blY = h - 9
     
-    writeData(3, blY + 1, "HP  : ", C_AZUL_CLARO, barHP, myHealth <= 6 and C_VERMELHO or C_VERDE, 20)
-    writeData(3, blY + 2, "FOME: ", C_AZUL_CLARO, barFood, myFood <= 6 and C_ALERTA or C_AMARELO, 20)
-    writeData(3, blY + 3, "RISK: ", C_AZUL_CLARO, barThreat, inimigosProximos > 0 and C_VERMELHO or C_VERDE, 20)
+    -- Exibe Redgames132
+    local op1 = tracker["redgames132"]
+    if op1.online then
+        local bar1HP = getProgressBar(op1.hp, 20, 6)
+        local bar1Fd = getProgressBar(op1.food, 20, 6)
+        writeData(3, blY + 1, "RED :: ", C_VERMELHO, "HP:"..bar1HP.." FD:"..bar1Fd, C_BRANCO, 20)
+    else
+        writeData(3, blY + 1, "RED :: ", C_VERMELHO, "[ OFFLINE ]", C_CINZA, 20)
+    end
+
+    -- Exibe Cadipadi
+    local op2 = tracker["cadipadi"]
+    if op2.online then
+        local bar2HP = getProgressBar(op2.hp, 20, 6)
+        local bar2Fd = getProgressBar(op2.food, 20, 6)
+        writeData(3, blY + 2, "CAD :: ", C_CYAN, "HP:"..bar2HP.." FD:"..bar2Fd, C_BRANCO, 20)
+    else
+        writeData(3, blY + 2, "CAD :: ", C_CYAN, "[ OFFLINE ]", C_CINZA, 20)
+    end
+
+    -- Ameaças detectadas
+    hud.setCursorPos(3, blY + 3)
+    hud.setTextColour(C_AZUL_CLARO)
+    hud.write("ALVOS PROXIMOS:")
 
     local row = 4
     local printados = 0
@@ -326,41 +362,52 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- TELEMETRIA
+    -- TELEMETRIA DA EQUIPE E AMBIENTE
     -- ==========================================
-    local trX = w - 24
+    local trX = w - 28
     local cycle = getDayCycle(os.time())
 
-    writeData(trX, 3, "POS :: ", C_AZUL_CLARO, myX..","..myY..","..myZ, C_BRANCO, 17)
-    writeData(trX, 4, "VEL :: ", C_AZUL_CLARO, speed .. " b/s", C_BRANCO, 17)
-    writeData(trX, 5, "TRV :: ", C_AZUL_CLARO, totalDistance .. " m", C_AMARELO, 17)
-    writeData(trX, 6, "BIO :: ", C_AZUL_CLARO, string.sub(currentBiome, 1, 14), C_BRANCO, 17)
-    writeData(trX, 7, "LUZ :: ", C_AZUL_CLARO, currentLight .. "/15 ("..cycle..")", spawnRisk and C_ALERTA or C_VERDE, 17)
+    if op1.online then
+        writeData(trX, 3, "RED :: ", C_VERMELHO, op1.x..","..op1.y..","..op1.z .. " ("..op1.speed.."b/s)", C_BRANCO, 22)
+    else
+        writeData(trX, 3, "RED :: ", C_VERMELHO, "[ SINAL PERDIDO ]", C_CINZA, 22)
+    end
+
+    if op2.online then
+        writeData(trX, 4, "CAD :: ", C_CYAN, op2.x..","..op2.y..","..op2.z .. " ("..op2.speed.."b/s)", C_BRANCO, 22)
+    else
+        writeData(trX, 4, "CAD :: ", C_CYAN, "[ SINAL PERDIDO ]", C_CINZA, 22)
+    end
+
+    writeData(trX, 6, "BIO :: ", C_AZUL_CLARO, string.sub(currentBiome, 1, 20), C_BRANCO, 22)
+    writeData(trX, 7, "LUZ :: ", C_AZUL_CLARO, currentLight .. "/15 ("..cycle..")", spawnRisk and C_ALERTA or C_VERDE, 22)
 
     -- ==========================================
     -- CORE OS
     -- ==========================================
     local brY = h - 5
-    writeData(trX, brY + 1, "MC  :: ", C_AZUL_CLARO, formatTime(os.time()), C_BRANCO, 17)
-    writeData(trX, brY + 2, "IRL :: ", C_AZUL_CLARO, os.date("%H:%M"), C_BRANCO, 17)
-    writeData(trX, brY + 3, "UPT :: ", C_AZUL_CLARO, formatUptime(os.clock() - startTime), C_BRANCO, 17)
+    local trXC = w - 24
+    writeData(trXC, brY + 1, "MC  :: ", C_AZUL_CLARO, formatTime(os.time()), C_BRANCO, 17)
+    writeData(trXC, brY + 2, "IRL :: ", C_AZUL_CLARO, os.date("%H:%M"), C_BRANCO, 17)
+    writeData(trXC, brY + 3, "UPT :: ", C_AZUL_CLARO, formatUptime(os.clock() - startTime), C_BRANCO, 17)
     
     local jStatus = jarvisAtivo and "[ ONLINE ]" or "[ OFFLINE ]"
     local jColor = jarvisAtivo and C_VERDE or C_CINZA
-    writeData(trX, brY + 4, "A.I :: ", C_AZUL_CLARO, jStatus, jColor, 17)
+    writeData(trXC, brY + 4, "A.I :: ", C_AZUL_CLARO, jStatus, jColor, 17)
 end
 
 -- ==========================================
--- LOOP PRINCIPAL
+-- LOOP PRINCIPAL E TECLAS
 -- ==========================================
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: HOLOGRAPHIC V5.1")
+print(" RED_INDUSTRIES :: DUO-CORE (CO-OP)")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Cadipadi promovido a Fantasma (Dono).")
+print(" > Sinais Vitais em Dupla carregados.")
+print(" > Radar fixado nas coordenadas da Base.")
 print(" > [J] Liga/Desliga Jarvis.")
 print(" > [Q] Desliga o HUD.")
 
@@ -396,4 +443,4 @@ hud.clear()
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)
-print("Visor Holografico encerrado.")
+print("Visor DUO-CORE encerrado.")

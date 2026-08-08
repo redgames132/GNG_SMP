@@ -1,6 +1,6 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (DEFESA)
--- UI Nano + Equipe Oficial + Sirene Tática
+-- HUD GLASSES - RED_INDUSTRIES_OS (CYBERPUNK)
+-- UI Decorada + Painel de Armadura Tática
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -15,15 +15,16 @@ if not hud then
     return
 end
 
-hud.setSize(100, 50)
+-- Mantém a resolução alta para as letras ficarem compactas e elegantes
+hud.setSize(100, 50) 
 
 -- ==========================================
--- CONFIGURAÇÕES DA SUA EQUIPE
+-- CONFIGURAÇÕES DA EQUIPE
 -- ==========================================
 local meuNick = "redgames132"
 local raioAlerta = 100
 
--- Lista Branca (Quem NÃO dispara o alarme)
+-- Whitelist
 local aliados = {
     ["redgames132"] = true,
     ["KAIOX_NEGROX"] = true,
@@ -33,7 +34,7 @@ local aliados = {
 
 local baseX, baseY, baseZ = -573, 57, -1446
 
--- Cores
+-- Cores Táticas
 local C_FUNDO = 0
 local C_VERMELHO = colors.red
 local C_CINZA = colors.gray
@@ -59,12 +60,14 @@ local function getDirection(dx, dz)
     else return dz > 0 and "SUL" or "NORTE" end
 end
 
+-- ==========================================
+-- DESENHO DO HUD (DECORADO)
+-- ==========================================
 local function drawHUD()
     hud.setBackgroundColour(C_FUNDO)
     hud.clear()
 
     local myX, myY, myZ = baseX, baseY, baseZ
-    local totalPlayers = 0
     local players = {}
     local inimigosProximos = 0
     
@@ -85,47 +88,94 @@ local function drawHUD()
         end
         
         local suc, pList = pcall(detector.getOnlinePlayers)
-        if suc and type(pList) == "table" then
-            players = pList
-            totalPlayers = #players
-        end
+        if suc and type(pList) == "table" then players = pList end
     end
 
-    local distBase = math.floor(math.sqrt((myX - baseX)^2 + (myY - baseY)^2 + (myZ - baseZ)^2))
+    -- Gerador de efeito visual "Hacker" (Código Hex Aleatório)
+    local hexCode = string.format("0x%04X", math.random(0, 65535))
 
-    -- LINHA 1: Cabeçalho
+    -- ==========================================
+    -- TOPO: CABEÇALHO DA ARMADURA
+    -- ==========================================
     hud.setCursorPos(1, 1)
     hud.setTextColour(C_VERMELHO)
-    hud.write("[RED_OS] ")
+    hud.write("+======[ ")
+    hud.setTextColour(C_BRANCO)
+    hud.write("RED_INDUSTRIES :: CORE_OS")
+    hud.setTextColour(C_VERMELHO)
+    hud.write(" ]======+")
+
+    -- STATUS E RELÓGIO
+    hud.setCursorPos(1, 2)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("| ")
     hud.setTextColour(C_CINZA)
-    hud.write("DIR: ")
-    hud.setTextColour(C_CYAN)
-    hud.write(compass)
+    hud.write("SYS > ")
+    hud.setTextColour(C_VERDE)
+    hud.write("ONLINE ")
     hud.setTextColour(C_CINZA)
-    hud.write(" | MC: ")
+    hud.write(" // ")
+    hud.setTextColour(C_ALERTA)
+    hud.write(hexCode)
+    hud.setTextColour(C_CINZA)
+    hud.write(" // TICK: ")
     hud.setTextColour(C_BRANCO)
     hud.write(formatTime(os.time()))
+    hud.setCursorPos(44, 2)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("|")
 
-    -- LINHA 2: Info Física
-    hud.setCursorPos(1, 2)
-    hud.setTextColour(C_CINZA)
-    hud.write("XYZ: ")
-    hud.setTextColour(C_BRANCO)
-    hud.write(myX .. " " .. myY .. " " .. myZ)
-    hud.setTextColour(C_CINZA)
-    hud.write(" | VEL: ")
-    hud.setTextColour(C_BRANCO)
-    hud.write(speed .. "b/s")
-    hud.setTextColour(C_CINZA)
-    hud.write(" | BASE: ")
-    hud.setTextColour(C_ALERTA)
-    hud.write(distBase .. "m")
+    -- DIVISÓRIA
+    hud.setCursorPos(1, 3)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("+-------------------------------------------+")
 
-    -- LINHAS 3+: Radar e Ameaças
+    -- ==========================================
+    -- MEIO: DADOS VITAIS E TELEMETRIA
+    -- ==========================================
+    hud.setCursorPos(1, 4)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("| ")
+    hud.setTextColour(C_CINZA)
+    hud.write("COORD :: ")
+    hud.setTextColour(C_CYAN)
+    -- Formata os espaços para as colunas ficarem alinhadas
+    hud.write(string.format("X:%-5s Y:%-3s Z:%-6s", myX, myY, myZ))
+    hud.setCursorPos(44, 4)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("|")
+
+    hud.setCursorPos(1, 5)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("| ")
+    hud.setTextColour(C_CINZA)
+    hud.write("SPEED :: ")
+    hud.setTextColour(C_BRANCO)
+    hud.write(string.format("%-4s", speed .. "b/s"))
+    hud.setTextColour(C_CINZA)
+    hud.write(" | DIR :: ")
+    hud.setTextColour(C_BRANCO)
+    hud.write(string.format("%-13s", compass))
+    hud.setCursorPos(44, 5)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("|")
+
+    -- DIVISÓRIA RADAR
+    hud.setCursorPos(1, 6)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("+======[ ")
+    hud.setTextColour(C_BRANCO)
+    hud.write("TACTICAL_RADAR (100m)")
+    hud.setTextColour(C_VERMELHO)
+    hud.write(" ]=========+")
+
+    -- ==========================================
+    -- BASE: RADAR E AMEAÇAS
+    -- ==========================================
     if detector then
-        local row = 4
+        local row = 7
         
-        -- Conta os inimigos para o alarme
+        -- Conta inimigos e Sirene Tática
         for _, p in ipairs(players) do
             if not aliados[p] then
                 local sP, pos = pcall(detector.getPlayerPos, p)
@@ -138,28 +188,29 @@ local function drawHUD()
             end
         end
 
-        -- ==========================================
-        -- SIRENE TÁTICA DE INVASÃO
-        -- ==========================================
         if inimigosProximos > 0 and speaker then
-            -- Toca notas alternadas para criar efeito de sirene
-            if frame % 4 == 0 then
-                speaker.playNote("bit", 3, 14) -- Tom agudo
-            elseif frame % 4 == 2 then
-                speaker.playNote("bit", 3, 10) -- Tom grave
-            end
+            if frame % 4 == 0 then speaker.playNote("bit", 3, 14)
+            elseif frame % 4 == 2 then speaker.playNote("bit", 3, 10) end
         end
 
-        -- Título do Radar
-        hud.setCursorPos(1, 3)
+        -- Efeito de piscar na tag de Alerta
+        hud.setCursorPos(1, 7)
         hud.setTextColour(C_VERMELHO)
-        hud.write("RADAR(" .. raioAlerta .. "m) [")
-        hud.setTextColour(inimigosProximos > 0 and C_VERMELHO or C_VERDE)
-        hud.write(inimigosProximos > 0 and "INVASOR DETECTADO" or "SEGURO")
+        hud.write("| ")
+        hud.setTextColour(C_CINZA)
+        hud.write("STATE :: ")
+        if inimigosProximos > 0 then
+            hud.setTextColour(frame % 2 == 0 and C_ALERTA or C_VERMELHO)
+            hud.write(string.format("%-30s", "[ ALERTA MAXIMO ]"))
+        else
+            hud.setTextColour(C_VERDE)
+            hud.write(string.format("%-30s", "[ PERIMETRO SEGURO ]"))
+        end
+        hud.setCursorPos(44, 7)
         hud.setTextColour(C_VERMELHO)
-        hud.write("]")
+        hud.write("|")
 
-        -- Desenha os jogadores no mapa mental
+        -- Listagem alinhada de jogadores
         local mostrados = 0
         for _, p in ipairs(players) do
             if p ~= meuNick then
@@ -168,29 +219,35 @@ local function drawHUD()
                     local dx, dy, dz = pos.x - myX, pos.y - myY, pos.z - myZ
                     local dist = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
                     
-                    hud.setCursorPos(1, row)
+                    hud.setCursorPos(1, row + 1)
                     
                     if dist <= raioAlerta then
+                        hud.setTextColour(C_VERMELHO)
+                        hud.write("| ")
                         if aliados[p] then
                             hud.setTextColour(C_VERDE)
-                            hud.write(" + " .. p .. " (" .. dist .. "m)")
+                            -- Formatação para alinhar: Nome (15 letras), Distância, Tag
+                            hud.write(string.format("[O] %-15s %-5s <ALIADO> ", p, dist.."m"))
                         else
                             hud.setTextColour(C_ALERTA)
-                            hud.write(" ! " .. p .. " (" .. dist .. "m)")
+                            hud.write(string.format("[X] %-15s %-5s <HOSTIL> ", p, dist.."m"))
                         end
-                        row = row + 1
-                        mostrados = mostrados + 1
-                    elseif mostrados < 3 then 
-                        hud.setTextColour(C_CINZA)
-                        hud.write(" - " .. p .. " (" .. dist .. "m)")
+                        
+                        hud.setCursorPos(44, row + 1)
+                        hud.setTextColour(C_VERMELHO)
+                        hud.write("|")
                         row = row + 1
                         mostrados = mostrados + 1
                     end
-                    
                     if mostrados >= 5 then break end
                 end
             end
         end
+        
+        -- Fecha a borda inferior acompanhando a quantidade de jogadores
+        hud.setCursorPos(1, row + 1)
+        hud.setTextColour(C_VERMELHO)
+        hud.write("+===========================================+")
     end
 end
 
@@ -200,11 +257,13 @@ end
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
-print("RED_INDUSTRIES HUD - EQUIPE E DEFESA")
+print("======================================")
+print(" RED_INDUSTRIES :: CORE_OS INICIADO")
+print("======================================")
 term.setTextColor(colors.white)
-print(" > Sirene de invasao ativada.")
-print(" > Equipe na Whitelist.")
-print(" > Pressione [Q] para SAIR.")
+print(" > Painel Cyberpunk Ativo.")
+print(" > Equipe na Whitelist sincronizada.")
+print(" > Pressione [Q] para DESLIGAR.")
 
 local running = true
 local timer = os.startTimer(0.25)
@@ -228,4 +287,4 @@ hud.clear()
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)
-print("HUD encerrado. Modo de espera.")
+print("Sistema encerrado.")

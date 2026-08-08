@@ -1,5 +1,5 @@
 -- ==========================================
--- RADAR RED_INDUSTRIES (V6 - ANTI-LAG)
+-- RADAR RED_INDUSTRIES (V7 - ULTRA OTIMIZADO)
 -- Coordenadas da Base: -573, 57, -1446
 -- ==========================================
 
@@ -29,16 +29,14 @@ local meuX = -573
 local meuY = 57
 local meuZ = -1446
 
--- Configurações
 local ranges = {200, 1000, 999999}
 local rangeNomes = {"200m", "1000m", "Infin"}
 local rIndex = 1
 
-local speeds = {5, 10, 20} -- Ajustado para ser fluido com o novo timer
+local speeds = {10, 20, 35} -- Maior ângulo por pulo
 local speedNomes = {"Lenta", "Normal", "Rapida"}
 local sIndex = 2
 
--- Configuração Visual
 monitor.setTextScale(0.5)
 local w, h = monitor.getSize()
 local buffer = window.create(monitor, 1, 1, w, h, false)
@@ -49,10 +47,24 @@ local radius = math.floor(math.min(cx / 1.5, cy)) - 4
 local angle = 0
 
 -- ==========================================
--- SISTEMA DE CACHE (O SEGREDO CONTRA O LAG)
+-- PRÉ-CÁLCULO GRÁFICO (O SEGREDO DA VELOCIDADE)
+-- Calcula o círculo de fundo uma única vez ao ligar
+-- ==========================================
+local circlePoints = {}
+for i = 0, 359, 10 do
+    local rad = math.rad(i)
+    local px = cx + math.floor(math.cos(rad) * radius * 1.5) 
+    local py = cy + math.floor(math.sin(rad) * radius)
+    if px >= 1 and px <= w and py >= 4 and py <= h then
+        table.insert(circlePoints, {x = px, y = py})
+    end
+end
+
+-- ==========================================
+-- SISTEMA DE CACHE DO SCANNER
 -- ==========================================
 local cachedPlayers = {}
-local framesSinceLastScan = 10 -- Começa em 10 para escanear no primeiro frame
+local framesSinceLastScan = 10
 
 local function scanPlayers()
     local success, players = pcall(detector.getOnlinePlayers)
@@ -62,7 +74,6 @@ local function scanPlayers()
         for _, nome in ipairs(players) do
             local successPos, pos = pcall(detector.getPlayerPos, nome)
             if successPos and pos and pos.x and pos.y and pos.z then
-                -- Salva os dados na memória temporária
                 table.insert(newCache, {nome = nome, x = pos.x, y = pos.y, z = pos.z})
             end
         end
@@ -71,7 +82,7 @@ local function scanPlayers()
 end
 
 -- ==========================================
--- MOTOR GRÁFICO (DESENHO)
+-- MOTOR GRÁFICO OTIMIZADO
 -- ==========================================
 local function drawRadar()
     buffer.setVisible(false)
@@ -120,16 +131,11 @@ local function drawRadar()
     buffer.setCursorPos(math.max(1, cx - math.floor(radius * 1.5) - 1), cy)
     buffer.write("O")
 
-    -- Círculo
+    -- Círculo Pré-calculado (Super rápido!)
     buffer.setTextColor(colors.green)
-    for i = 0, 359, 10 do
-        local rad = math.rad(i)
-        local x = cx + math.floor(math.cos(rad) * radius * 1.5) 
-        local y = cy + math.floor(math.sin(rad) * radius)
-        if x >= 1 and x <= w and y >= 4 and y <= h then
-            buffer.setCursorPos(x, y)
-            buffer.write(".")
-        end
+    for _, pt in ipairs(circlePoints) do
+        buffer.setCursorPos(pt.x, pt.y)
+        buffer.write(".")
     end
 
     buffer.setCursorPos(cx, cy)
@@ -137,22 +143,22 @@ local function drawRadar()
     buffer.write("X")
 
     -- Varredura Animada
-    for offset = 0, 2 do
-        local sweepRad = math.rad(angle - (offset * 2))
+    for offset = 0, 1 do -- Reduzido para menos cálculos visuais
+        local sweepRad = math.rad(angle - (offset * 3))
         local col = (offset == 0) and colors.lime or colors.green
         buffer.setTextColor(col)
         
         for r = 1, radius do
-            local x = cx + math.floor(math.cos(sweepRad) * r * 1.5)
-            local y = cy + math.floor(math.sin(sweepRad) * r)
-            if x >= 1 and x <= w and y >= 4 and y <= h and not (x == cx and y == cy) then
-                buffer.setCursorPos(x, y)
+            local px = cx + math.floor(math.cos(sweepRad) * r * 1.5)
+            local py = cy + math.floor(math.sin(sweepRad) * r)
+            if px >= 1 and px <= w and py >= 4 and py <= h and not (px == cx and py == cy) then
+                buffer.setCursorPos(px, py)
                 buffer.write(offset == 0 and "+" or ".")
             end
         end
     end
 
-    -- Desenha os Jogadores lendo do CACHE (Zero lag de servidor)
+    -- Jogadores (Via Cache)
     local currentRange = ranges[rIndex]
     
     for _, player in ipairs(cachedPlayers) do
@@ -192,36 +198,34 @@ local function drawRadar()
 end
 
 -- ==========================================
--- LOOP PRINCIPAL
+-- LOOP PRINCIPAL (A PROVA DE FALHAS)
 -- ==========================================
 
 term.clear()
 term.setCursorPos(1, 1)
 print("======================================")
-print(" RADAR OTIMIZADO (ANTI-LAG) ATIVO")
+print(" RADAR OTIMIZADO V7 - ANTI-CRASH")
 print("======================================")
-print(" > Sistema de cache online.")
+print(" > Graficos pre-renderizados.")
 
 local running = true
-local updateTimer = os.startTimer(0.08) -- Tempo ideal para evitar crash no CC
+local updateTimer = os.startTimer(0.1) -- 10 FPS, cravado e seguro
 
 while running do
     local event, p1, p2, p3 = os.pullEvent()
 
     if event == "timer" and p1 == updateTimer then
-        -- 1. Controle de Scan de Jogadores (Só escaneia a cada 10 frames = ~0.8s)
+        -- Escaneia a cada 1 segundo (10 frames)
         framesSinceLastScan = framesSinceLastScan + 1
         if framesSinceLastScan >= 10 then
             scanPlayers()
             framesSinceLastScan = 0
         end
 
-        -- 2. Atualiza a animação
         angle = (angle + speeds[sIndex]) % 360
         drawRadar()
         
-        -- 3. Reinicia o timer de forma saudável
-        updateTimer = os.startTimer(0.08)
+        updateTimer = os.startTimer(0.1)
 
     elseif event == "monitor_touch" then
         local clickX, clickY = p2, p3
@@ -235,7 +239,7 @@ while running do
                 sIndex = sIndex + 1
                 if sIndex > #speeds then sIndex = 1 end
             end
-            drawRadar()
+            -- REMOVIDA A ATUALIZAÇÃO FORÇADA AQUI (Evita crash por spam de clique)
         end
 
     elseif event == "key" then
@@ -253,4 +257,4 @@ monitor.setTextColor(colors.red)
 monitor.write("SISTEMA DESLIGADO")
 term.clear()
 term.setCursorPos(1, 1)
-print("Radar encerrado com segurança.")
+print("Encerrado com sucesso.")

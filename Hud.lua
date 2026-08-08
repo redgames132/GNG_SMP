@@ -1,9 +1,8 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS
+-- HUD GLASSES - RED_INDUSTRIES_OS (CORRIGIDO)
 -- Tema: Cyberpunk / Vermelho Tático
 -- ==========================================
 
--- Procura os módulos
 local hud = peripheral.find("hud_glasses")
 local detector = peripheral.find("player_detector")
 
@@ -16,15 +15,18 @@ end
 -- ==========================================
 -- CONFIGURAÇÕES VISUAIS
 -- ==========================================
--- A cor '0' é um segredo do mod CC: HUD Glasses para deixar transparente
+-- A cor '0' deixa o fundo do óculos transparente
 local C_FUNDO = 0 
 local C_PRIM = colors.red
 local C_SEC = colors.lightGray
 local C_BRANCO = colors.white
 local C_ALERTA = colors.orange
 
--- Ajusta a escala (pode mudar para 0.5 se achar as letras muito grandes)
-hud.setTextScale(1)
+-- CORREÇÃO: O mod HUD Glasses usa a resolução da tela em vez de Scale.
+-- Se achar as letras na sua tela muito pequenas, tire os dois traços (--) da linha abaixo
+-- e diminua os números (ex: hud.setSize(60, 20)) para dar "zoom".
+-- hud.setSize(80, 28)
+
 local w, h = hud.getSize()
 
 -- Variáveis de Animação
@@ -42,7 +44,6 @@ end
 -- DESENHO DO HUD
 -- ==========================================
 local function drawHUD()
-    -- Aplica a transparência no fundo inteiro da tela do jogador
     hud.setBackgroundColour(C_FUNDO)
     hud.clear()
 
@@ -69,7 +70,7 @@ local function drawHUD()
     hud.setTextColour(C_PRIM)
     hud.write("SISTEMA ONLINE " .. animFrame)
 
-    -- 3. INFORMAÇÕES DE AMBIENTE (Relógio do Jogo)
+    -- 3. INFORMAÇÕES DE AMBIENTE (Relógio)
     hud.setCursorPos(2, 8)
     hud.setTextColour(C_SEC)
     hud.write("CICLO  : ")
@@ -82,7 +83,7 @@ local function drawHUD()
     hud.setTextColour(C_BRANCO)
     hud.write(formatTime(os.time()))
 
-    -- 4. MÓDULO DE SEGURANÇA TÁTICA (Requer Player Detector)
+    -- 4. MÓDULO DE SEGURANÇA TÁTICA
     hud.setCursorPos(2, 11)
     hud.setTextColour(C_PRIM)
     hud.write("--- SENSOR BIOMETRICO ---")
@@ -95,11 +96,11 @@ local function drawHUD()
             hud.setTextColour(C_SEC)
             hud.write("ENTIDADES: ")
             
-            -- Se tiver mais de 1 pessoa (você + alguem), fica vermelho
+            -- Fica vermelho se tiver mais de 1 pessoa
             hud.setTextColour(#players > 1 and C_PRIM or C_BRANCO)
             hud.write(tostring(#players))
 
-            -- Lista no máximo 5 nomes na tela para não poluir sua visão
+            -- Lista no máximo 5 nomes na tela
             local limit = math.min(#players, 5)
             for i = 1, limit do
                 hud.setCursorPos(2, 13 + i)
@@ -112,13 +113,12 @@ local function drawHUD()
             hud.write("ESCANEANDO SINAIS...")
         end
     else
-        -- Se o computador do HUD não tiver detector conectado
         hud.setCursorPos(2, 12)
         hud.setTextColour(colors.gray)
         hud.write("[ SENSOR OFFLINE ]")
     end
 
-    -- 5. BARRA DE MÉTRICA DIREITA (Apenas visual cyberpunk)
+    -- 5. BARRA DE MÉTRICA DIREITA (Animação estilo CPU)
     local maxBars = math.floor(h / 3)
     local activeBars = (frame % maxBars) + 1
     
@@ -138,7 +138,7 @@ local function drawHUD()
 end
 
 -- ==========================================
--- INICIALIZAÇÃO
+-- INICIALIZAÇÃO E LOOP
 -- ==========================================
 term.clear()
 term.setCursorPos(1,1)
@@ -149,9 +149,8 @@ print("> Transmissao visual estabelecida.")
 print("> Oculos online.")
 print("> Pressione [CTRL + T] para encerrar.")
 
--- Loop infinito de atualização da tela
 while true do
     drawHUD()
     frame = frame + 1
-    os.sleep(0.25) -- Atualiza 4 vezes por segundo
+    os.sleep(0.25)
 end

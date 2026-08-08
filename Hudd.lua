@@ -1,6 +1,6 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (HOLO V4)
--- Mira Calibrada + Tecla J (Jarvis) + UI Pro
+-- HUD GLASSES - RED_INDUSTRIES_OS (HOLO V4.1)
+-- Ajuste Fino de Mira + Tecla J (Jarvis)
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -20,15 +20,17 @@ hud.setSize(100, 50)
 local w, h = hud.getSize()
 
 -- ==========================================
--- CONFIGURAÇÕES (MIRA E EQUIPE)
+-- CONFIGURAÇÕES (BASE E EQUIPE)
 -- ==========================================
 local meuNick = "redgames132"
 local raioAlerta = 250
 local baseX, baseY, baseZ = -573, 57, -1446
 
--- Calibragem exata baseada na sua print
-local offsetMiraX = 1  -- Empurra 1 pixel para a direita
-local offsetMiraY = 0  
+-- ==========================================
+-- MANUAL DE CALIBRAGEM (MUDA AQUI SE FICAR TORTO)
+-- ==========================================
+local offsetMiraX = 0  -- Mude para -1 se precisar ir para a ESQUERDA
+local offsetMiraY = 1  -- Coloquei 1 para descer a mira, mude para 2 se precisar descer mais
 
 local aliados = {
     ["redgames132"] = true,
@@ -54,16 +56,16 @@ local frame = 0
 local startTime = os.clock()
 
 -- Sistema JARVIS
-local jarvisAtivo = true -- Começa ligado
+local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Mantenha sua estamina alta para evasao.",
-    "JARVIS: O minimapa e a sua maior vantagem.",
-    "JARVIS: Recuo tatico e uma estrategia valida.",
-    "JARVIS: Parametros vitais sob monitoramento.",
-    "JARVIS: O cenario atual favorece armadilhas.",
-    "JARVIS: Mapeamento do perimetro concluido.",
-    "JARVIS: Varredura termica nao detectou anomalias.",
-    "JARVIS: Rede neural sincronizada com a base."
+    "JARVIS: Saggin.",
+    "JARVIS: Nigga.",
+    "JARVIS: Nigga.",
+    "JARVIS: Nigga.",
+    "JARVIS: Nigga.",
+    "JARVIS: Nigga.",
+    "JARVIS: Nigga.",
+    "JARVIS: Nigga."
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0
@@ -103,7 +105,6 @@ local function writeData(x, y, label, colLabel, value, colValue, pad)
     hud.write(str .. string.rep(" ", emptySpace))
 end
 
--- Função para gerar barras de progresso bonitas [||||....]
 local function getProgressBar(valor, maximo, tamanho)
     local preenchido = math.floor((valor / maximo) * tamanho)
     local vazio = tamanho - preenchido
@@ -130,17 +131,9 @@ local function drawStaticHUD()
 
     -- Painéis Decorativos Holográficos
     hud.setTextColour(C_AZUL_CLARO)
-    
-    -- Topo Esquerdo (Radar)
     hud.setCursorPos(1, 1) hud.write("// RADAR_TATICO_360 [====----------]")
-    
-    -- Topo Direito (Telemetria)
     hud.setCursorPos(w - 38, 1) hud.write("[----------====] TELEMETRIA_VITAL //")
-    
-    -- Fundo Esquerdo (Sinais Vitais)
     hud.setCursorPos(1, h - 9) hud.write("// SISTEMAS_VITAIS_E_BIOSCAN")
-    
-    -- Fundo Direito (Core OS)
     hud.setCursorPos(w - 28, h - 6) hud.write("RED_INDUSTRIES_CORE_OS //")
 end
 
@@ -222,7 +215,6 @@ local function updateDynamicHUD()
     local midX = math.floor(w/2) + offsetMiraX
     local midY = math.floor(h/2) + offsetMiraY
 
-    -- Alvo na Mira Central
     if inimigoMaisProximo then
         writeData(midX - 12, midY - 5, ">> ALVO: ", C_ALERTA, inimigoMaisProximo .. " ("..menorDistanciaInimigo.."m)", C_VERMELHO, 25)
     else
@@ -230,7 +222,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- SISTEMA JARVIS (COM TOGGLE)
+    -- SISTEMA JARVIS
     -- ==========================================
     if jarvisAtivo then
         if jarvisAtual == "" then
@@ -260,7 +252,6 @@ local function updateDynamicHUD()
             writeData(midX - 30, midY + 8, "", C_BRANCO, "", C_CYAN, 60)
         end
     else
-        -- Apaga o texto do Jarvis se estiver desligado
         writeData(midX - 30, midY + 8, "", C_BRANCO, "", C_CYAN, 60)
     end
 
@@ -290,11 +281,9 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- SINAIS VITAIS (INFERIOR ESQUERDO)
+    -- SINAIS VITAIS 
     -- ==========================================
     local blY = h - 8
-    
-    -- Barras Visuais de HP e Fome
     local barHP = getProgressBar(myHealth, 20, 10)
     local barFood = getProgressBar(myFood, 20, 10)
     
@@ -317,7 +306,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- TELEMETRIA (SUPERIOR DIREITO)
+    -- TELEMETRIA
     -- ==========================================
     local trX = w - 24
     writeData(trX, 3, "POS :: ", C_AZUL_CLARO, myX..","..myY..","..myZ, C_BRANCO, 17)
@@ -326,30 +315,29 @@ local function updateDynamicHUD()
     writeData(trX, 6, "LUZ :: ", C_AZUL_CLARO, currentLight .. "/15", spawnRisk and C_ALERTA or C_VERDE, 17)
 
     -- ==========================================
-    -- CORE OS E STATUS DO JARVIS (INFERIOR DIREITO)
+    -- CORE OS
     -- ==========================================
     local brY = h - 5
     writeData(trX, brY + 1, "MC  :: ", C_AZUL_CLARO, formatTime(os.time()), C_BRANCO, 17)
     writeData(trX, brY + 2, "IRL :: ", C_AZUL_CLARO, os.date("%H:%M"), C_BRANCO, 17)
     writeData(trX, brY + 3, "UPT :: ", C_AZUL_CLARO, formatUptime(os.clock() - startTime), C_BRANCO, 17)
     
-    -- Indicador do Jarvis no painel
     local jStatus = jarvisAtivo and "[ ONLINE ]" or "[ OFFLINE ]"
     local jColor = jarvisAtivo and C_VERDE or C_CINZA
     writeData(trX, brY + 4, "A.I :: ", C_AZUL_CLARO, jStatus, jColor, 17)
 end
 
 -- ==========================================
--- LOOP PRINCIPAL E CONTROLE DE TECLAS
+-- LOOP PRINCIPAL E TECLAS
 -- ==========================================
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: HOLOGRAPHIC V4")
+print(" RED_INDUSTRIES :: HOLOGRAPHIC V4.1")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Interface Avancada Carregada.")
+print(" > Mira ajustada.")
 print(" > [J] Liga/Desliga Jarvis.")
 print(" > [Q] Desliga o HUD.")
 
@@ -369,10 +357,9 @@ while running do
         if p1 == keys.q then
             running = false
         elseif p1 == keys.j then
-            -- Liga/Desliga o Jarvis
             jarvisAtivo = not jarvisAtivo
             if not jarvisAtivo then
-                jarvisAtual = "" -- Limpa a fala atual se for desligado
+                jarvisAtual = "" 
                 if speaker then speaker.playSound("block.beacon.deactivate", 1.0, 1.0) end
             else
                 if speaker then speaker.playSound("block.beacon.activate", 1.0, 2.0) end
@@ -386,4 +373,4 @@ hud.clear()
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)
-print("Visor Holografico encerrado meu nigga.")
+print("Visor Holografico encerrado.")

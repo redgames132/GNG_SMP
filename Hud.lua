@@ -18,7 +18,7 @@ end
 -- ==========================================
 -- CONFIGURAÇÕES (MUDE O SEU NICK AQUI)
 -- ==========================================
-local meuNick = "SEU_NICK_AQUI" -- Substitua pelo seu nick exato do Minecraft
+local meuNick = "redgames132" -- Substitua pelo seu nick exato do Minecraft
 local raioAlerta = 50            -- Raio de proximidade do radar (em blocos)
 
 -- Cores do Tema

@@ -1,6 +1,6 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (HOLO V5)
--- Sem Mira Central + Moldura Tática + Funções
+-- HUD GLASSES - RED_INDUSTRIES_OS (HOLO V5.1)
+-- Sistema de Donos (Furtividade) + Moldura
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -26,15 +26,19 @@ local meuNick = "redgames132"
 local raioAlerta = 250
 local baseX, baseY, baseZ = -573, 57, -1446
 
--- Ajuste para os textos centrais (Alvo e Jarvis)
 local offsetMiraX = 0  
 local offsetMiraY = 1  
 
-local aliados = {
+-- DONOS DO SISTEMA (Ficam invisíveis no radar)
+local donosDoSistema = {
     ["redgames132"] = true,
-    ["KAIOX_NEGROX"] = true,
-    ["goonerstickle69"] = true,
     ["cadipadi"] = true
+}
+
+-- ALIADOS COMUNS (Aparecem em Verde)
+local aliados = {
+    ["KAIOX_NEGROX"] = true,
+    ["goonerstickle69"] = true
 }
 
 -- Paleta Neon Holográfica
@@ -50,22 +54,23 @@ local C_CINZA = colors.gray
 
 local lastX, lastY, lastZ = nil, nil, nil
 local speed, speedTicks = 0, 0
-local totalDistance = 0 -- NOVO: Odômetro
+local totalDistance = 0 
 local frame = 0
 local startTime = os.clock()
 
 -- Sistema JARVIS
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Saggin.",
-    "JARVIS: Nigga.",
-    "JARVIS: Se um nigget vale por um nigger quanto vale um saggin?",
-    "JARVIS: Quantas gulas enchem um ovo?",
-    "JARVIS: Cuidado com o homem misteriroso.",
-    "JARVIS: O homem sabido que sabia das coisas esta com fome.",
-    "JARVIS: /gulaish kalipano.",
-    "JARVIS: Cuidado com o porco velho.",
-    "JARVIS: Quantas Gulas cabem num Pe?"
+    "JARVIS: Mantenha sua estamina alta para evasao.",
+    "JARVIS: O minimapa e a sua maior vantagem.",
+    "JARVIS: Recuo tatico e uma estrategia valida.",
+    "JARVIS: Parametros vitais sob monitoramento.",
+    "JARVIS: O cenario atual favorece armadilhas.",
+    "JARVIS: Mapeamento do perimetro concluido.",
+    "JARVIS: Varredura termica nao detectou anomalias.",
+    "JARVIS: Rede neural sincronizada com a base.",
+    "JARVIS: Cadipadi operando em modo furtivo.",
+    "JARVIS: Odometro registrando movimentacao."
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0
@@ -118,36 +123,29 @@ local function getProgressBar(valor, maximo, tamanho)
 end
 
 -- ==========================================
--- 1. DESENHO ESTÁTICO (DECORAÇÃO DAS BORDAS)
+-- 1. DESENHO ESTÁTICO
 -- ==========================================
 local function drawStaticHUD()
     hud.setBackgroundColour(C_TRANS)
     hud.clear()
 
     hud.setTextColour(C_AZUL_CLARO)
-
-    -- MOLDURA DO CAPACETE (CANTOS)
-    -- Canto Superior Esquerdo
     hud.setCursorPos(1, 1) hud.write("+==[ RADAR ]======================-")
     hud.setCursorPos(1, 2) hud.write("||")
     hud.setCursorPos(1, 3) hud.write("||")
 
-    -- Canto Superior Direito
     hud.setCursorPos(w - 34, 1) hud.write("-===================[ TELEMETRIA ]==+")
     hud.setCursorPos(w - 1, 2) hud.write("||")
     hud.setCursorPos(w - 1, 3) hud.write("||")
 
-    -- Canto Inferior Esquerdo
     hud.setCursorPos(1, h - 2) hud.write("||")
     hud.setCursorPos(1, h - 1) hud.write("||")
     hud.setCursorPos(1, h)     hud.write("+==[ VITAIS ]=====================-")
 
-    -- Canto Inferior Direito
     hud.setCursorPos(w - 1, h - 2) hud.write("||")
     hud.setCursorPos(w - 1, h - 1) hud.write("||")
     hud.setCursorPos(w - 34, h)    hud.write("-======================[ CORE OS ]==+")
 
-    -- Detalhes Laterais (Scanning brackets)
     hud.setTextColour(C_CINZA)
     hud.setCursorPos(2, math.floor(h/2) - 1) hud.write("[")
     hud.setCursorPos(2, math.floor(h/2) + 1) hud.write("[")
@@ -186,7 +184,7 @@ local function updateDynamicHUD()
             if speedTicks >= 10 then 
                 local dx, dy, dz = myX - lastX, myY - lastY, myZ - lastZ
                 speed = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
-                totalDistance = totalDistance + speed -- Atualiza o Odômetro
+                totalDistance = totalDistance + speed 
                 lastX, lastY, lastZ = myX, myY, myZ
                 speedTicks = 0
             end
@@ -203,7 +201,8 @@ local function updateDynamicHUD()
         local suc, pList = pcall(detector.getOnlinePlayers)
         if suc and type(pList) == "table" then
             for _, p in ipairs(pList) do
-                if p ~= meuNick then
+                -- MAGIA ACONTECE AQUI: Ignora totalmente quem está na lista de "donos"
+                if not donosDoSistema[p] then
                     local sP, pos = pcall(detector.getPlayerPos, p)
                     if sP and type(pos) == "table" and pos.x then
                         local dx, dy, dz = pos.x - myX, pos.y - myY, pos.z - myZ
@@ -234,7 +233,6 @@ local function updateDynamicHUD()
     local midX = math.floor(w/2) + offsetMiraX
     local midY = math.floor(h/2) + offsetMiraY
 
-    -- Alvo travado flutuando no centro (sem a mira física)
     if inimigoMaisProximo then
         writeData(midX - 12, midY - 2, ">> ALVO: ", C_ALERTA, inimigoMaisProximo .. " ("..menorDistanciaInimigo.."m)", C_VERMELHO, 25)
     else
@@ -301,12 +299,11 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- SINAIS VITAIS & NÍVEL DE AMEAÇA
+    -- SINAIS VITAIS
     -- ==========================================
     local blY = h - 10
     local barHP = getProgressBar(myHealth, 20, 10)
     local barFood = getProgressBar(myFood, 20, 10)
-    -- Medidor de Ameaça (Cap máximo de 5 inimigos para encher a barra)
     local barThreat = getProgressBar(math.min(inimigosProximos, 5), 5, 10)
     
     writeData(3, blY + 1, "HP  : ", C_AZUL_CLARO, barHP, myHealth <= 6 and C_VERMELHO or C_VERDE, 20)
@@ -336,7 +333,7 @@ local function updateDynamicHUD()
 
     writeData(trX, 3, "POS :: ", C_AZUL_CLARO, myX..","..myY..","..myZ, C_BRANCO, 17)
     writeData(trX, 4, "VEL :: ", C_AZUL_CLARO, speed .. " b/s", C_BRANCO, 17)
-    writeData(trX, 5, "TRV :: ", C_AZUL_CLARO, totalDistance .. " m", C_AMARELO, 17) -- Odômetro
+    writeData(trX, 5, "TRV :: ", C_AZUL_CLARO, totalDistance .. " m", C_AMARELO, 17)
     writeData(trX, 6, "BIO :: ", C_AZUL_CLARO, string.sub(currentBiome, 1, 14), C_BRANCO, 17)
     writeData(trX, 7, "LUZ :: ", C_AZUL_CLARO, currentLight .. "/15 ("..cycle..")", spawnRisk and C_ALERTA or C_VERDE, 17)
 
@@ -354,17 +351,16 @@ local function updateDynamicHUD()
 end
 
 -- ==========================================
--- LOOP PRINCIPAL E TECLAS
+-- LOOP PRINCIPAL
 -- ==========================================
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: HOLOGRAPHIC V5")
+print(" RED_INDUSTRIES :: HOLOGRAPHIC V5.1")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Mira Central Removida.")
-print(" > Odometro e Nivel de Ameaça Ativos.")
+print(" > Cadipadi promovido a Fantasma (Dono).")
 print(" > [J] Liga/Desliga Jarvis.")
 print(" > [Q] Desliga o HUD.")
 

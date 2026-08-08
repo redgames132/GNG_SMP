@@ -1,6 +1,6 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (DUO-CORE V2)
--- Sistema DEFCON + Elevação de Alvos + EQ Visual
+-- HUD GLASSES - RED_INDUSTRIES_OS (DUO V3)
+-- Grade Holográfica + Clean Center + UI Pro
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -45,6 +45,7 @@ local C_CYAN = colors.cyan
 local C_VERDE = colors.lime
 local C_AZUL_CLARO = colors.lightBlue
 local C_CINZA = colors.gray
+local C_CINZA_ESCURO = colors.lightGray
 
 local frame = 0
 local speedTicks = 0
@@ -53,19 +54,20 @@ local startTime = os.clock()
 -- Sistema JARVIS
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Saggin",
-    "JARVIS: Homem misterioso.",
-    "JARVIS: Tung tung.",
-    "JARVIS: Meu pe.",
-    "JARVIS: Kalip.",
-    "JARVIS: Redarelhada de aco.",
-    "JARVIS: PimPimPong."
+    "JARVIS: Equipe, mantenham a estamina alta para evasao.",
+    "JARVIS: Defesa de perimetro ativada. Monitorando a base.",
+    "JARVIS: Trabalhem em conjunto. O fogo cruzado e letal.",
+    "JARVIS: Acompanhe os indicadores de elevacao no radar.",
+    "JARVIS: O cenario atual favorece emboscadas. Atencao.",
+    "JARVIS: Varredura termica conjunta nao detectou anomalias.",
+    "JARVIS: Rede neural estabilizada entre os operadores."
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0
 local jarvisTempoTela = 0
 
-local radarCX, radarCY = 14, 9
+-- Geometria do Radar
+local radarCX, radarCY = 14, 10
 local visualRadius = 7
 local circlePoints = {}
 for i = 0, 359, 15 do
@@ -113,14 +115,8 @@ local function getProgressBar(valor, maximo, tamanho)
     return "[" .. string.rep("|", preenchido) .. string.rep(".", vazio) .. "]"
 end
 
-local function getDirection(dx, dz)
-    if dx == 0 and dz == 0 then return "-" end
-    if math.abs(dx) > math.abs(dz) then return dx > 0 and "LESTE" or "OESTE"
-    else return dz > 0 and "SUL" or "NORTE" end
-end
-
 -- ==========================================
--- 1. DESENHO ESTÁTICO
+-- 1. DESENHO ESTÁTICO (MOLDURAS ESTRUTURAIS)
 -- ==========================================
 local function drawStaticHUD()
     hud.setBackgroundColour(C_TRANS)
@@ -160,7 +156,6 @@ local function updateDynamicHUD()
     local inimigoMaisProximo = nil
     local menorDistanciaInimigo = 99999
     local dadosRadar = {}
-    local principalCompass = "-"
     
     local currentBiome, currentLight = "OFFLINE", 15
     local spawnRisk = false
@@ -193,12 +188,6 @@ local function updateDynamicHUD()
                             local dy = tracker[p].y - tracker[p].lastY
                             local dz = tracker[p].z - tracker[p].lastZ
                             tracker[p].speed = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
-                            
-                            -- Pega a direção do usuário principal que está rodando o óculos
-                            if p == operadores[1] and tracker[p].speed > 0 then
-                                principalCompass = getDirection(dx, dz)
-                            end
-                            
                             tracker[p].lastX, tracker[p].lastY, tracker[p].lastZ = tracker[p].x, tracker[p].y, tracker[p].z
                         end
 
@@ -240,7 +229,7 @@ local function updateDynamicHUD()
     local midY = math.floor(h/2) + offsetMiraY
 
     -- ==========================================
-    -- SISTEMA DEFCON (TOPO CENTRAL)
+    -- SISTEMA DEFCON E ALVOS
     -- ==========================================
     local defconLvl = 5
     local defconCol = C_VERDE
@@ -255,7 +244,7 @@ local function updateDynamicHUD()
 
     writeData(midX - 10, 2, "DEFCON " .. defconLvl .. " :: ", C_BRANCO, defconTxt, defconCol, 15)
 
-    -- Alvo travado
+    -- Alvo travado (Centralizado e sem a mira)
     if inimigoMaisProximo then
         writeData(midX - 12, midY - 2, ">> ALVO: ", C_ALERTA, inimigoMaisProximo .. " ("..menorDistanciaInimigo.."m)", C_VERMELHO, 25)
     else
@@ -263,10 +252,8 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- SISTEMA JARVIS E BÚSSOLA
+    -- SISTEMA JARVIS
     -- ==========================================
-    writeData(midX - 3, midY + 3, "", C_BRANCO, principalCompass, C_AMARELO, 10)
-
     if jarvisAtivo then
         if jarvisAtual == "" then
             if spawnRisk and math.random(1, 40) == 1 then
@@ -290,28 +277,44 @@ local function updateDynamicHUD()
                 if jarvisTempoTela <= 0 then jarvisAtual = "" end
             end
             local displayString = string.sub(jarvisAtual, 1, math.floor(jarvisProgresso))
-            writeData(math.floor(midX - (#displayString / 2)), midY + 5, "", C_BRANCO, displayString, C_CYAN, 60)
+            writeData(math.floor(midX - (#displayString / 2)), midY + 4, "", C_BRANCO, displayString, C_CYAN, 60)
         else
-            writeData(midX - 30, midY + 5, "", C_BRANCO, "", C_CYAN, 60)
+            writeData(midX - 30, midY + 4, "", C_BRANCO, "", C_CYAN, 60)
         end
     else
-        writeData(midX - 30, midY + 5, "", C_BRANCO, "", C_CYAN, 60)
+        writeData(midX - 30, midY + 4, "", C_BRANCO, "", C_CYAN, 60)
     end
 
     -- ==========================================
-    -- MINIMAPA (CENTRO = BASE)
+    -- MINIMAPA (EFEITO GRADE HOLOGRÁFICA)
     -- ==========================================
+    -- Limpa a área do radar
     for rY = radarCY - 7, radarCY + 7 do
         hud.setCursorPos(radarCX - 12, rY)
         hud.write("                        ")
     end
 
-    hud.setTextColour(C_BRANCO)
+    -- Desenha a grade interna para dar efeito de tela (sonar)
+    hud.setTextColour(C_CINZA_ESCURO)
+    for rY = radarCY - 5, radarCY + 5 do
+        hud.setCursorPos(radarCX, rY)
+        hud.write("|")
+    end
+    hud.setCursorPos(radarCX - 8, radarCY)
+    hud.write("-------+-------")
+
+    -- Desenha o aro exterior
+    hud.setTextColour(C_AZUL_CLARO)
     for _, pt in ipairs(circlePoints) do
         hud.setCursorPos(pt.x, pt.y) hud.write(".")
     end
-    hud.setCursorPos(radarCX, radarCY) hud.setTextColour(C_AMARELO) hud.write("B")
+    
+    -- Marca o centro (Base)
+    hud.setCursorPos(radarCX, radarCY) 
+    hud.setTextColour(C_AMARELO) 
+    hud.write("B")
 
+    -- Desenha as Ameaças/Aliados
     for _, alvo in ipairs(dadosRadar) do
         if alvo.d <= raioAlerta then
             local scale = visualRadius / raioAlerta
@@ -324,7 +327,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- SINAIS VITAIS DA EQUIPE E ALVOS
+    -- SINAIS VITAIS E LOG
     -- ==========================================
     local blY = h - 9
     
@@ -356,8 +359,6 @@ local function updateDynamicHUD()
         if alvo.d <= raioAlerta and printados < 4 then
             local icon = alvo.aliado and "[ALIADO]" or "[HOSTIL]"
             local col = alvo.aliado and C_VERDE or C_ALERTA
-            
-            -- Lógica de Elevação
             local elev = "-"
             if alvo.dy > 4 then elev = "^" elseif alvo.dy < -4 then elev = "v" end
             
@@ -369,7 +370,7 @@ local function updateDynamicHUD()
     for r = row, 7 do writeData(3, blY + r, "", C_BRANCO, "", C_BRANCO, 25) end
 
     -- ==========================================
-    -- TELEMETRIA DA EQUIPE
+    -- TELEMETRIA
     -- ==========================================
     local trX = w - 28
     local cycle = getDayCycle(os.time())
@@ -390,12 +391,11 @@ local function updateDynamicHUD()
     writeData(trX, 7, "LUZ :: ", C_AZUL_CLARO, currentLight .. "/15 ("..cycle..")", spawnRisk and C_ALERTA or C_VERDE, 22)
 
     -- ==========================================
-    -- CORE OS E VISUALIZER DE REDE
+    -- CORE OS
     -- ==========================================
     local brY = h - 5
     local trXC = w - 24
     
-    -- Animação de Rede Neural Fake
     local eqBars = {"|", "||", "|||", "||||", "|||||"}
     local eq1, eq2, eq3 = eqBars[math.random(1,5)], eqBars[math.random(1,5)], eqBars[math.random(1,5)]
     
@@ -415,11 +415,11 @@ term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: DUO-CORE (DEFCON)")
+print(" RED_INDUSTRIES :: DUO-CORE V3")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Modulo DEFCON e Elevacao Ativos.")
-print(" > Bússola centralizada e Spectrum Visualizer.")
+print(" > Direcao removida (Clean Center).")
+print(" > Grade Holografica inserida no radar.")
 print(" > [J] Liga/Desliga Jarvis.")
 print(" > [Q] Desliga o HUD.")
 

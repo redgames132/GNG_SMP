@@ -1,6 +1,6 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (CYBERPUNK)
--- Sirene do Juizo Final & UI Tática
+-- HUD GLASSES - RED_INDUSTRIES_OS (PANORAMIC)
+-- Layout Distribuído 4 Cantos + Novas Métricas
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -15,15 +15,17 @@ if not hud then
     return
 end
 
-hud.setSize(100, 50) 
+-- Mantém a resolução em 100x50 para criar espaço de sobra
+hud.setSize(100, 50)
+local w, h = hud.getSize()
 
 -- ==========================================
 -- CONFIGURAÇÕES DA EQUIPE
 -- ==========================================
 local meuNick = "redgames132"
-local raioAlerta = 200
+local raioAlerta = 100
+local baseX, baseY, baseZ = -573, 57, -1446
 
--- Whitelist (Não disparam o alarme)
 local aliados = {
     ["redgames132"] = true,
     ["KAIOX_NEGROX"] = true,
@@ -31,9 +33,7 @@ local aliados = {
     ["cadipadi"] = true
 }
 
-local baseX, baseY, baseZ = -573, 57, -1446
-
--- Cores
+-- Cores Táticas
 local C_FUNDO = 0
 local C_VERMELHO = colors.red
 local C_CINZA = colors.gray
@@ -46,11 +46,19 @@ local lastX, lastY, lastZ = nil, nil, nil
 local speed, speedTicks = 0, 0
 local compass = "-"
 local frame = 0
+local startTime = os.clock() -- Tempo que o sistema foi ligado
 
+-- Funções Utilitárias
 local function formatTime(t)
     local hora = math.floor(t)
     local min = math.floor((t - hora) * 60)
     return string.format("%02d:%02d", hora, min)
+end
+
+local function formatUptime(seconds)
+    local m = math.floor(seconds / 60)
+    local s = math.floor(seconds % 60)
+    return string.format("%02d:%02d", m, s)
 end
 
 local function getDirection(dx, dz)
@@ -60,7 +68,7 @@ local function getDirection(dx, dz)
 end
 
 -- ==========================================
--- DESENHO DO HUD
+-- DESENHO DO HUD PANORÂMICO
 -- ==========================================
 local function drawHUD()
     hud.setBackgroundColour(C_FUNDO)
@@ -69,7 +77,9 @@ local function drawHUD()
     local myX, myY, myZ = baseX, baseY, baseZ
     local players = {}
     local inimigosProximos = 0
+    local distBase = 0
     
+    -- Leitura dos Sensores
     if detector then
         local sucMyPos, myPos = pcall(detector.getPlayerPos, meuNick)
         if sucMyPos and type(myPos) == "table" and myPos.x then
@@ -90,158 +100,214 @@ local function drawHUD()
         if suc and type(pList) == "table" then players = pList end
     end
 
-    local hexCode = string.format("0x%04X", math.random(0, 65535))
-
-    -- TOPO: CABEÇALHO
-    hud.setCursorPos(1, 1)
-    hud.setTextColour(C_VERMELHO)
-    hud.write("+======[ ")
-    hud.setTextColour(C_BRANCO)
-    hud.write("RED_INDUSTRIES :: CORE_OS")
-    hud.setTextColour(C_VERMELHO)
-    hud.write(" ]======+")
-
-    hud.setCursorPos(1, 2)
-    hud.setTextColour(C_VERMELHO)
-    hud.write("| ")
-    hud.setTextColour(C_CINZA)
-    hud.write("SYS > ")
-    hud.setTextColour(C_VERDE)
-    hud.write("ONLINE ")
-    hud.setTextColour(C_CINZA)
-    hud.write(" // ")
-    hud.setTextColour(C_ALERTA)
-    hud.write(hexCode)
-    hud.setTextColour(C_CINZA)
-    hud.write(" // TICK: ")
-    hud.setTextColour(C_BRANCO)
-    hud.write(formatTime(os.time()))
-    hud.setCursorPos(44, 2)
-    hud.setTextColour(C_VERMELHO)
-    hud.write("|")
-
-    hud.setCursorPos(1, 3)
-    hud.setTextColour(C_VERMELHO)
-    hud.write("+-------------------------------------------+")
-
-    -- MEIO: TELEMETRIA
-    hud.setCursorPos(1, 4)
-    hud.setTextColour(C_VERMELHO)
-    hud.write("| ")
-    hud.setTextColour(C_CINZA)
-    hud.write("COORD :: ")
-    hud.setTextColour(C_CYAN)
-    hud.write(string.format("X:%-5s Y:%-3s Z:%-6s", myX, myY, myZ))
-    hud.setCursorPos(44, 4)
-    hud.setTextColour(C_VERMELHO)
-    hud.write("|")
-
-    hud.setCursorPos(1, 5)
-    hud.setTextColour(C_VERMELHO)
-    hud.write("| ")
-    hud.setTextColour(C_CINZA)
-    hud.write("SPEED :: ")
-    hud.setTextColour(C_BRANCO)
-    hud.write(string.format("%-4s", speed .. "b/s"))
-    hud.setTextColour(C_CINZA)
-    hud.write(" | DIR :: ")
-    hud.setTextColour(C_BRANCO)
-    hud.write(string.format("%-13s", compass))
-    hud.setCursorPos(44, 5)
-    hud.setTextColour(C_VERMELHO)
-    hud.write("|")
-
-    hud.setCursorPos(1, 6)
-    hud.setTextColour(C_VERMELHO)
-    hud.write("+======[ ")
-    hud.setTextColour(C_BRANCO)
-    hud.write("TACTICAL_RADAR (100m)")
-    hud.setTextColour(C_VERMELHO)
-    hud.write(" ]=========+")
-
-    -- BASE: RADAR E SIRENE DE TERROR
-    if detector then
-        local row = 7
-        
-        for _, p in ipairs(players) do
-            if not aliados[p] then
-                local sP, pos = pcall(detector.getPlayerPos, p)
-                if sP and type(pos) == "table" and pos.x then
-                    local dx, dy, dz = pos.x - myX, pos.y - myY, pos.z - myZ
-                    if math.floor(math.sqrt(dx*dx + dy*dy + dz*dz)) <= raioAlerta then
-                        inimigosProximos = inimigosProximos + 1
-                    end
+    distBase = math.floor(math.sqrt((myX - baseX)^2 + (myY - baseY)^2 + (myZ - baseZ)^2))
+    
+    -- Pré-cálculo de Ameaças
+    for _, p in ipairs(players) do
+        if not aliados[p] then
+            local sP, pos = pcall(detector.getPlayerPos, p)
+            if sP and type(pos) == "table" and pos.x then
+                local dx, dy, dz = pos.x - myX, pos.y - myY, pos.z - myZ
+                if math.floor(math.sqrt(dx*dx + dy*dy + dz*dz)) <= raioAlerta then
+                    inimigosProximos = inimigosProximos + 1
                 end
             end
         end
+    end
 
-        -- ==========================================
-        -- SIRENE DO JUÍZO FINAL
-        -- Toca no volume 3.0 (Máximo) e alterna os sons
-        -- ==========================================
-        if inimigosProximos > 0 and speaker then
-            if frame % 8 == 0 then
-                -- Som do Wither (Grave e aterrorizante)
-                speaker.playSound("entity.wither.spawn", 3.0, 0.5)
-            elseif frame % 8 == 4 then
-                -- Som de Sino e Grito do Ghast distorcido
-                speaker.playSound("block.bell.resonate", 3.0, 0.5)
-                speaker.playSound("entity.ghast.scream", 3.0, 0.6)
+    -- Disparo da Sirene (Wither + Ghast no max)
+    if inimigosProximos > 0 and speaker then
+        if frame % 8 == 0 then
+            speaker.playSound("entity.wither.spawn", 3.0, 0.5)
+        elseif frame % 8 == 4 then
+            speaker.playSound("block.bell.resonate", 3.0, 0.5)
+            speaker.playSound("entity.ghast.scream", 3.0, 0.6)
+        end
+    end
+
+    -- Efeitos Visuais
+    local hexCode = string.format("0x%04X", math.random(0, 65535))
+    local isAlerta = inimigosProximos > 0
+    local colorTheme = isAlerta and C_VERMELHO or C_CYAN
+    local blink = frame % 2 == 0
+
+    -- ==========================================
+    -- 1. CANTO SUPERIOR ESQUERDO (RADAR E COMBATE)
+    -- ==========================================
+    hud.setCursorPos(1, 1)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("+--[ ")
+    hud.setTextColour(C_BRANCO)
+    hud.write("RADAR TÁTICO (" .. raioAlerta .. "m)")
+    hud.setTextColour(C_VERMELHO)
+    hud.write(" ]")
+
+    local row = 2
+    local mostrados = 0
+    for _, p in ipairs(players) do
+        if p ~= meuNick then
+            local sP, pos = pcall(detector.getPlayerPos, p)
+            if sP and type(pos) == "table" and pos.x then
+                local dx, dy, dz = pos.x - myX, pos.y - myY, pos.z - myZ
+                local dist = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
+                
+                if dist <= raioAlerta then
+                    hud.setCursorPos(1, row)
+                    hud.setTextColour(C_VERMELHO)
+                    hud.write("| ")
+                    if aliados[p] then
+                        hud.setTextColour(C_VERDE)
+                        hud.write(string.format("[O] %-14s %-5s", p, dist.."m"))
+                    else
+                        hud.setTextColour(blink and C_ALERTA or C_VERMELHO)
+                        hud.write(string.format("[X] %-14s %-5s", p, dist.."m"))
+                    end
+                    row = row + 1
+                    mostrados = mostrados + 1
+                end
+                if mostrados >= 5 then break end
             end
         end
-
-        hud.setCursorPos(1, 7)
+    end
+    
+    if mostrados == 0 then
+        hud.setCursorPos(1, row)
         hud.setTextColour(C_VERMELHO)
         hud.write("| ")
         hud.setTextColour(C_CINZA)
-        hud.write("STATE :: ")
-        if inimigosProximos > 0 then
-            hud.setTextColour(frame % 2 == 0 and C_ALERTA or C_VERMELHO)
-            hud.write(string.format("%-30s", "[ AMEACA DETECTADA ]"))
-        else
-            hud.setTextColour(C_VERDE)
-            hud.write(string.format("%-30s", "[ PERIMETRO SEGURO ]"))
-        end
-        hud.setCursorPos(44, 7)
-        hud.setTextColour(C_VERMELHO)
-        hud.write("|")
-
-        local mostrados = 0
-        for _, p in ipairs(players) do
-            if p ~= meuNick then
-                local sP, pos = pcall(detector.getPlayerPos, p)
-                if sP and type(pos) == "table" and pos.x then
-                    local dx, dy, dz = pos.x - myX, pos.y - myY, pos.z - myZ
-                    local dist = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
-                    
-                    hud.setCursorPos(1, row + 1)
-                    
-                    if dist <= raioAlerta then
-                        hud.setTextColour(C_VERMELHO)
-                        hud.write("| ")
-                        if aliados[p] then
-                            hud.setTextColour(C_VERDE)
-                            hud.write(string.format("[O] %-15s %-5s <ALIADO> ", p, dist.."m"))
-                        else
-                            hud.setTextColour(C_ALERTA)
-                            hud.write(string.format("[X] %-15s %-5s <HOSTIL> ", p, dist.."m"))
-                        end
-                        
-                        hud.setCursorPos(44, row + 1)
-                        hud.setTextColour(C_VERMELHO)
-                        hud.write("|")
-                        row = row + 1
-                        mostrados = mostrados + 1
-                    end
-                    if mostrados >= 5 then break end
-                end
-            end
-        end
-        
-        hud.setCursorPos(1, row + 1)
-        hud.setTextColour(C_VERMELHO)
-        hud.write("+===========================================+")
+        hud.write("Nenhum contato.")
+        row = row + 1
     end
+    hud.setCursorPos(1, row)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("+-------------------------")
+
+    -- ==========================================
+    -- 2. CANTO SUPERIOR DIREITO (TELEMETRIA E POSIÇÃO)
+    -- ==========================================
+    local trX = w - 30 -- Alinha a 30 caracteres do final da tela
+    
+    hud.setCursorPos(trX, 1)
+    hud.setTextColour(colorTheme)
+    hud.write("[ ")
+    hud.setTextColour(C_BRANCO)
+    hud.write("TELEMETRIA VITAL")
+    hud.setTextColour(colorTheme)
+    hud.write(" ]--+")
+
+    hud.setCursorPos(trX, 2)
+    hud.setTextColour(C_CINZA)
+    hud.write("  COORD : ")
+    hud.setTextColour(C_BRANCO)
+    hud.write(string.format("%-21s", myX .. "," .. myY .. "," .. myZ))
+    hud.setTextColour(colorTheme)
+    hud.write("|")
+
+    hud.setCursorPos(trX, 3)
+    hud.setTextColour(C_CINZA)
+    hud.write("  DIREC : ")
+    hud.setTextColour(C_CYAN)
+    hud.write(string.format("%-21s", compass))
+    hud.setTextColour(colorTheme)
+    hud.write("|")
+
+    hud.setCursorPos(trX, 4)
+    hud.setTextColour(C_CINZA)
+    hud.write("  VELOC : ")
+    hud.setTextColour(C_BRANCO)
+    hud.write(string.format("%-21s", speed .. " b/s"))
+    hud.setTextColour(colorTheme)
+    hud.write("|")
+
+    hud.setCursorPos(trX, 5)
+    hud.setTextColour(C_CINZA)
+    hud.write("  D.BASE: ")
+    hud.setTextColour(C_ALERTA)
+    hud.write(string.format("%-21s", distBase .. "m"))
+    hud.setTextColour(colorTheme)
+    hud.write("|")
+
+    hud.setCursorPos(trX, 6)
+    hud.write("-------------------------+")
+
+    -- ==========================================
+    -- 3. CANTO INFERIOR ESQUERDO (AMBIENTE / AMEAÇA)
+    -- ==========================================
+    local blY = h - 3
+    
+    hud.setCursorPos(1, blY)
+    hud.setTextColour(colorTheme)
+    hud.write("+--[ ")
+    hud.setTextColour(C_BRANCO)
+    hud.write("STATUS")
+    hud.setTextColour(colorTheme)
+    hud.write(" ]")
+
+    hud.setCursorPos(1, blY + 1)
+    hud.write("| ")
+    hud.setTextColour(C_CINZA)
+    hud.write("DEFESA: ")
+    if isAlerta then
+        hud.setTextColour(blink and C_ALERTA or C_VERMELHO)
+        hud.write("EMERGENCIA!!")
+    else
+        hud.setTextColour(C_VERDE)
+        hud.write("OTIMIZADA")
+    end
+
+    hud.setCursorPos(1, blY + 2)
+    hud.setTextColour(colorTheme)
+    hud.write("| ")
+    hud.setTextColour(C_CINZA)
+    hud.write("DIA MC: ")
+    hud.setTextColour(C_BRANCO)
+    hud.write(os.day())
+
+    -- ==========================================
+    -- 4. CANTO INFERIOR DIREITO (SISTEMA E RELÓGIO)
+    -- ==========================================
+    local brY = h - 4
+    local brX = w - 30
+
+    hud.setCursorPos(brX, brY)
+    hud.setTextColour(C_VERMELHO)
+    hud.write("[ ")
+    hud.setTextColour(C_BRANCO)
+    hud.write("RED_INDUSTRIES_OS")
+    hud.setTextColour(C_VERMELHO)
+    hud.write(" ]--+")
+
+    hud.setCursorPos(brX, brY + 1)
+    hud.setTextColour(C_CINZA)
+    hud.write("  IRL : ")
+    hud.setTextColour(C_BRANCO)
+    hud.write(string.format("%-21s", os.date("%H:%M")))
+    hud.setTextColour(C_VERMELHO)
+    hud.write("|")
+
+    hud.setCursorPos(brX, brY + 2)
+    hud.setTextColour(C_CINZA)
+    hud.write("  GAME: ")
+    hud.setTextColour(C_CYAN)
+    hud.write(string.format("%-21s", formatTime(os.time())))
+    hud.setTextColour(C_VERMELHO)
+    hud.write("|")
+
+    hud.setCursorPos(brX, brY + 3)
+    hud.setTextColour(C_CINZA)
+    hud.write("  UPT : ")
+    hud.setTextColour(C_BRANCO)
+    hud.write(string.format("%-21s", formatUptime(os.clock() - startTime)))
+    hud.setTextColour(C_VERMELHO)
+    hud.write("|")
+
+    hud.setCursorPos(brX, brY + 4)
+    hud.setTextColour(C_CINZA)
+    hud.write("  CORE: ")
+    hud.setTextColour(C_ALERTA)
+    hud.write(string.format("%-21s", hexCode))
+    hud.setTextColour(C_VERMELHO)
+    hud.write("|")
 end
 
 -- ==========================================
@@ -251,10 +317,10 @@ term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: SISTEMA DE TERROR")
+print(" RED_INDUSTRIES :: TACTICAL PANORAMA")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Alarme Nivel Wither configurado.")
+print(" > Modulos distribuidos na tela 360.")
 print(" > Pressione [Q] para DESLIGAR.")
 
 local running = true
@@ -279,4 +345,4 @@ hud.clear()
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)
-print("Sistema encerrado.")
+print("Sistema encerrado com seguranca.")

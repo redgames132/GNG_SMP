@@ -1,11 +1,11 @@
 -- ==========================================
 -- HUD GLASSES - RED_INDUSTRIES_OS (DEFESA)
--- UI Nano + Sistema de Aliados e Alarme
+-- UI Nano + Equipe Oficial + Sirene Tática
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
 local detector = peripheral.find("player_detector")
-local speaker = peripheral.find("speaker") -- NECESSÁRIO PARA O SOM!
+local speaker = peripheral.find("speaker")
 
 if not hud then
     term.clear()
@@ -15,20 +15,20 @@ if not hud then
     return
 end
 
-hud.setSize(100, 50) -- Resolução que deixa a UI pequena
+hud.setSize(100, 50)
 
 -- ==========================================
--- CONFIGURAÇÕES (MUDE AQUI)
+-- CONFIGURAÇÕES DA SUA EQUIPE
 -- ==========================================
 local meuNick = "redgames132"
-local raioAlerta = 150
+local raioAlerta = 100
 
--- Lista do seu Time (Coloque os nicks dos seus amigos como true)
+-- Lista Branca (Quem NÃO dispara o alarme)
 local aliados = {
-    [meuNick] = true,
-    ["cadipadi"] = true,
-    ["goonerstickle69"] = true
-    ["KAIOX_NEGROX"] = true
+    ["redgames132"] = true,
+    ["KAIOX_NEGROX"] = true,
+    ["goonerstickle69"] = true,
+    ["cadipadi"] = true
 }
 
 local baseX, baseY, baseZ = -573, 57, -1446
@@ -70,7 +70,6 @@ local function drawHUD()
     
     if detector then
         local sucMyPos, myPos = pcall(detector.getPlayerPos, meuNick)
-        -- CORREÇÃO DA LINHA 71: type(myPos) == "table" previne o crash!
         if sucMyPos and type(myPos) == "table" and myPos.x then
             myX, myY, myZ = math.floor(myPos.x), math.floor(myPos.y), math.floor(myPos.z)
             
@@ -94,7 +93,7 @@ local function drawHUD()
 
     local distBase = math.floor(math.sqrt((myX - baseX)^2 + (myY - baseY)^2 + (myZ - baseZ)^2))
 
-    -- LINHA 1
+    -- LINHA 1: Cabeçalho
     hud.setCursorPos(1, 1)
     hud.setTextColour(C_VERMELHO)
     hud.write("[RED_OS] ")
@@ -107,7 +106,7 @@ local function drawHUD()
     hud.setTextColour(C_BRANCO)
     hud.write(formatTime(os.time()))
 
-    -- LINHA 2
+    -- LINHA 2: Info Física
     hud.setCursorPos(1, 2)
     hud.setTextColour(C_CINZA)
     hud.write("XYZ: ")
@@ -122,11 +121,11 @@ local function drawHUD()
     hud.setTextColour(C_ALERTA)
     hud.write(distBase .. "m")
 
-    -- LINHAS 3+ (Radar)
+    -- LINHAS 3+: Radar e Ameaças
     if detector then
         local row = 4
         
-        -- Conta inimigos e dispara alarme
+        -- Conta os inimigos para o alarme
         for _, p in ipairs(players) do
             if not aliados[p] then
                 local sP, pos = pcall(detector.getPlayerPos, p)
@@ -139,12 +138,19 @@ local function drawHUD()
             end
         end
 
-        -- Alarme Sonoro (Apita a cada 1 segundo se tiver inimigo e Speaker conectado)
-        if inimigosProximos > 0 and speaker and (frame % 4 == 0) then
-            speaker.playNote("bell", 3, 12) -- Toca um sino agudo
+        -- ==========================================
+        -- SIRENE TÁTICA DE INVASÃO
+        -- ==========================================
+        if inimigosProximos > 0 and speaker then
+            -- Toca notas alternadas para criar efeito de sirene
+            if frame % 4 == 0 then
+                speaker.playNote("bit", 3, 14) -- Tom agudo
+            elseif frame % 4 == 2 then
+                speaker.playNote("bit", 3, 10) -- Tom grave
+            end
         end
 
-        -- Cabeçalho do Radar
+        -- Título do Radar
         hud.setCursorPos(1, 3)
         hud.setTextColour(C_VERMELHO)
         hud.write("RADAR(" .. raioAlerta .. "m) [")
@@ -153,7 +159,7 @@ local function drawHUD()
         hud.setTextColour(C_VERMELHO)
         hud.write("]")
 
-        -- Desenha jogadores
+        -- Desenha os jogadores no mapa mental
         local mostrados = 0
         for _, p in ipairs(players) do
             if p ~= meuNick then
@@ -194,10 +200,10 @@ end
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
-print("RED_INDUSTRIES HUD - SISTEMA DE DEFESA")
+print("RED_INDUSTRIES HUD - EQUIPE E DEFESA")
 term.setTextColor(colors.white)
-print(" > Alarme sonoro pronto (Requer Speaker).")
-print(" > Aliados configurados.")
+print(" > Sirene de invasao ativada.")
+print(" > Equipe na Whitelist.")
 print(" > Pressione [Q] para SAIR.")
 
 local running = true
@@ -222,4 +228,4 @@ hud.clear()
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)
-print("HUD encerrado.")
+print("HUD encerrado. Modo de espera.")

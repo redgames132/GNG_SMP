@@ -1,5 +1,5 @@
 -- ==========================================
--- RED_INDUSTRIES - POCKET ORE SCANNER (VISUAL LIMPO)
+-- RED_INDUSTRIES - POCKET SCANNER AUTO
 -- ==========================================
 
 local scanner = peripheral.find("geo_scanner") or peripheral.find("geoScanner")
@@ -14,12 +14,14 @@ if not scanner then
     return
 end
 
-local radius = 8
+local radius = 8 -- Raio padrão do Scanner (altere se tiver upgrade)
 local ores = {}
-local status = "AGUARDANDO COMANDO..."
+local status = "INICIANDO SISTEMA..."
 local w, h = term.getSize()
+
+-- Centraliza no espaço livre da tela (descontando as 2 linhas de baixo)
 local cx = math.floor(w / 2)
-local cy = 9
+local cy = math.floor((h - 2) / 2) 
 
 local function getOreColor(name)
     local n = string.lower(name)
@@ -36,60 +38,44 @@ local function getOreColor(name)
     if string.find(n, "zinc") then return colors.lightGray end
     if string.find(n, "osmium") then return colors.lightBlue end
     if string.find(n, "uranium") then return colors.green end
-    return colors.lightGray -- Cor padrão para outros minérios
+    return colors.lightGray
 end
 
 local function drawRadar()
-    -- Fundo preto limpo
     term.setBackgroundColor(colors.black)
     term.clear()
 
-    -- 1. Barra de Título
-    term.setCursorPos(1, 1)
-    term.setBackgroundColor(colors.gray)
-    term.setTextColor(colors.red)
-    term.write(string.rep(" ", w))
-    term.setCursorPos(2, 1)
-    term.write("RED_INDUSTRIES SCANNER")
-    term.setBackgroundColor(colors.black)
-
-    -- 2. Centro (Sua Posição)
+    -- 1. Centro (Sua Posição)
     term.setCursorPos(cx, cy)
     term.setTextColor(colors.white)
     term.write("X")
 
-    -- 3. Desenhar Minérios como Cubos Coloridos
+    -- 2. Desenhar Minérios (Tela Cheia)
     for _, b in ipairs(ores) do
+        -- Escala X expandida para aproveitar a largura da tela do pocket
         local px = cx + math.floor(b.x * 1.5)
         local py = cy + b.z
         
-        -- Garante que o cubo vai ser desenhado dentro da tela livre
-        if px >= 1 and px <= w and py >= 2 and py <= h - 2 then
-            -- Não desenha por cima do "X" do jogador
+        -- Desenha apenas se estiver dentro da área livre do mapa
+        if px >= 1 and px <= w and py >= 1 and py <= h - 2 then
             if not (px == cx and py == cy) then
                 term.setCursorPos(px, py)
-                -- O segredo do cubo: Muda a cor do fundo e escreve um espaço vazio!
                 term.setBackgroundColor(getOreColor(b.name))
                 term.write(" ") 
             end
         end
     end
-    -- Reseta o fundo para preto antes de desenhar os menus
+    
     term.setBackgroundColor(colors.black)
 
-    -- 4. Interface (Botão)
+    -- 3. Explicações e Legenda no Fundo
     term.setCursorPos(1, h - 1)
-    term.setBackgroundColor(colors.gray)
-    term.setTextColor(colors.yellow)
-    term.write(string.rep(" ", w))
-    local txtBtn = "[ ESCANEAR ]"
-    term.setCursorPos(math.floor((w - #txtBtn)/2) + 1, h - 1)
-    term.write(txtBtn)
-    term.setBackgroundColor(colors.black)
-
-    -- 5. Barra de Status
+    term.setTextColor(colors.lightGray)
+    term.write(" [Q] Sair | Raio: " .. radius .. "m ")
+    
+    -- 4. Barra de Status Dinâmica
     term.setCursorPos(1, h)
-    term.write(string.rep(" ", w))
+    term.write(string.rep(" ", w)) -- Limpa a linha
     term.setCursorPos(1, h)
     
     if string.find(status, "ERRO") then
@@ -97,15 +83,12 @@ local function drawRadar()
     elseif string.find(status, "CONCLUIDO") then
         term.setTextColor(colors.lime)
     else
-        term.setTextColor(colors.white)
+        term.setTextColor(colors.yellow)
     end
     term.write(status)
 end
 
 local function doScan()
-    status = "ESCANEANDO..."
-    drawRadar()
-    
     local res, err
     local success = pcall(function()
         if scanner.scanBlocks then
@@ -118,45 +101,43 @@ local function doScan()
     if success and res then
         ores = {}
         for _, b in ipairs(res) do
-            -- Filtra tudo que for minério (ore) ou detritos (debris) no sistema
             if string.find(b.name, "ore") or string.find(b.name, "debris") then
                 table.insert(ores, b)
             end
         end
         status = "CONCLUIDO: " .. #ores .. " encontrados"
     else
-        status = "ERRO: " .. (err or "Falha no Scanner")
+        -- Geralmente erro de Cooldown por escanear rápido demais
+        status = "ERRO: " .. (err or "Recarregando...") 
     end
     drawRadar()
 end
 
 -- ==========================================
--- GERENCIADOR DE ENTRADAS (TOUCH E TECLADO)
+-- GERENCIADOR DE EVENTOS (AUTOMÁTICO)
 -- ==========================================
 local running = true
+-- Dispara o primeiro scan imediatamente (0 segundos)
+local scanTimer = os.startTimer(0) 
+
 drawRadar()
 
 while running do
     local event, p1, p2, p3 = os.pullEvent()
     
-    if event == "mouse_click" then
-        local clickX, clickY = p2, p3
-        -- Se clicar na linha do botão
-        if clickY == h - 1 then
-            doScan()
-        end
+    if event == "timer" and p1 == scanTimer then
+        doScan()
+        -- Configura o próximo scan para 1.5s depois para não bugar o mod
+        scanTimer = os.startTimer(1.5)
+        
     elseif event == "key" then
-        -- Tecla Q para sair
         if p1 == keys.q then
             running = false
-        -- Espaço ou Enter para escanear
-        elseif p1 == keys.enter or p1 == keys.space then
-            doScan()
         end
     end
 end
 
--- Limpa a tela ao fechar
+-- Desliga
 term.setBackgroundColor(colors.black)
 term.clear()
 term.setCursorPos(1,1)

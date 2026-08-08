@@ -21,7 +21,7 @@ hud.setSize(100, 50)
 -- CONFIGURAÇÕES DA EQUIPE
 -- ==========================================
 local meuNick = "redgames132"
-local raioAlerta = 100
+local raioAlerta = 200
 
 -- Whitelist (Não disparam o alarme)
 local aliados = {

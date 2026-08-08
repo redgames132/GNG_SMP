@@ -1,6 +1,6 @@
 -- ==========================================
 -- HUD GLASSES - RED_INDUSTRIES_OS (CYBERPUNK)
--- UI Decorada + Painel de Armadura Tática
+-- Sirene do Juizo Final & UI Tática
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -15,7 +15,6 @@ if not hud then
     return
 end
 
--- Mantém a resolução alta para as letras ficarem compactas e elegantes
 hud.setSize(100, 50) 
 
 -- ==========================================
@@ -24,7 +23,7 @@ hud.setSize(100, 50)
 local meuNick = "redgames132"
 local raioAlerta = 100
 
--- Whitelist
+-- Whitelist (Não disparam o alarme)
 local aliados = {
     ["redgames132"] = true,
     ["KAIOX_NEGROX"] = true,
@@ -34,7 +33,7 @@ local aliados = {
 
 local baseX, baseY, baseZ = -573, 57, -1446
 
--- Cores Táticas
+-- Cores
 local C_FUNDO = 0
 local C_VERMELHO = colors.red
 local C_CINZA = colors.gray
@@ -61,7 +60,7 @@ local function getDirection(dx, dz)
 end
 
 -- ==========================================
--- DESENHO DO HUD (DECORADO)
+-- DESENHO DO HUD
 -- ==========================================
 local function drawHUD()
     hud.setBackgroundColour(C_FUNDO)
@@ -91,12 +90,9 @@ local function drawHUD()
         if suc and type(pList) == "table" then players = pList end
     end
 
-    -- Gerador de efeito visual "Hacker" (Código Hex Aleatório)
     local hexCode = string.format("0x%04X", math.random(0, 65535))
 
-    -- ==========================================
-    -- TOPO: CABEÇALHO DA ARMADURA
-    -- ==========================================
+    -- TOPO: CABEÇALHO
     hud.setCursorPos(1, 1)
     hud.setTextColour(C_VERMELHO)
     hud.write("+======[ ")
@@ -105,7 +101,6 @@ local function drawHUD()
     hud.setTextColour(C_VERMELHO)
     hud.write(" ]======+")
 
-    -- STATUS E RELÓGIO
     hud.setCursorPos(1, 2)
     hud.setTextColour(C_VERMELHO)
     hud.write("| ")
@@ -125,21 +120,17 @@ local function drawHUD()
     hud.setTextColour(C_VERMELHO)
     hud.write("|")
 
-    -- DIVISÓRIA
     hud.setCursorPos(1, 3)
     hud.setTextColour(C_VERMELHO)
     hud.write("+-------------------------------------------+")
 
-    -- ==========================================
-    -- MEIO: DADOS VITAIS E TELEMETRIA
-    -- ==========================================
+    -- MEIO: TELEMETRIA
     hud.setCursorPos(1, 4)
     hud.setTextColour(C_VERMELHO)
     hud.write("| ")
     hud.setTextColour(C_CINZA)
     hud.write("COORD :: ")
     hud.setTextColour(C_CYAN)
-    -- Formata os espaços para as colunas ficarem alinhadas
     hud.write(string.format("X:%-5s Y:%-3s Z:%-6s", myX, myY, myZ))
     hud.setCursorPos(44, 4)
     hud.setTextColour(C_VERMELHO)
@@ -160,7 +151,6 @@ local function drawHUD()
     hud.setTextColour(C_VERMELHO)
     hud.write("|")
 
-    -- DIVISÓRIA RADAR
     hud.setCursorPos(1, 6)
     hud.setTextColour(C_VERMELHO)
     hud.write("+======[ ")
@@ -169,13 +159,10 @@ local function drawHUD()
     hud.setTextColour(C_VERMELHO)
     hud.write(" ]=========+")
 
-    -- ==========================================
-    -- BASE: RADAR E AMEAÇAS
-    -- ==========================================
+    -- BASE: RADAR E SIRENE DE TERROR
     if detector then
         local row = 7
         
-        -- Conta inimigos e Sirene Tática
         for _, p in ipairs(players) do
             if not aliados[p] then
                 local sP, pos = pcall(detector.getPlayerPos, p)
@@ -188,12 +175,21 @@ local function drawHUD()
             end
         end
 
+        -- ==========================================
+        -- SIRENE DO JUÍZO FINAL
+        -- Toca no volume 3.0 (Máximo) e alterna os sons
+        -- ==========================================
         if inimigosProximos > 0 and speaker then
-            if frame % 4 == 0 then speaker.playNote("bit", 3, 14)
-            elseif frame % 4 == 2 then speaker.playNote("bit", 3, 10) end
+            if frame % 8 == 0 then
+                -- Som do Wither (Grave e aterrorizante)
+                speaker.playSound("entity.wither.spawn", 3.0, 0.5)
+            elseif frame % 8 == 4 then
+                -- Som de Sino e Grito do Ghast distorcido
+                speaker.playSound("block.bell.resonate", 3.0, 0.5)
+                speaker.playSound("entity.ghast.scream", 3.0, 0.6)
+            end
         end
 
-        -- Efeito de piscar na tag de Alerta
         hud.setCursorPos(1, 7)
         hud.setTextColour(C_VERMELHO)
         hud.write("| ")
@@ -201,7 +197,7 @@ local function drawHUD()
         hud.write("STATE :: ")
         if inimigosProximos > 0 then
             hud.setTextColour(frame % 2 == 0 and C_ALERTA or C_VERMELHO)
-            hud.write(string.format("%-30s", "[ ALERTA MAXIMO ]"))
+            hud.write(string.format("%-30s", "[ AMEACA DETECTADA ]"))
         else
             hud.setTextColour(C_VERDE)
             hud.write(string.format("%-30s", "[ PERIMETRO SEGURO ]"))
@@ -210,7 +206,6 @@ local function drawHUD()
         hud.setTextColour(C_VERMELHO)
         hud.write("|")
 
-        -- Listagem alinhada de jogadores
         local mostrados = 0
         for _, p in ipairs(players) do
             if p ~= meuNick then
@@ -226,7 +221,6 @@ local function drawHUD()
                         hud.write("| ")
                         if aliados[p] then
                             hud.setTextColour(C_VERDE)
-                            -- Formatação para alinhar: Nome (15 letras), Distância, Tag
                             hud.write(string.format("[O] %-15s %-5s <ALIADO> ", p, dist.."m"))
                         else
                             hud.setTextColour(C_ALERTA)
@@ -244,7 +238,6 @@ local function drawHUD()
             end
         end
         
-        -- Fecha a borda inferior acompanhando a quantidade de jogadores
         hud.setCursorPos(1, row + 1)
         hud.setTextColour(C_VERMELHO)
         hud.write("+===========================================+")
@@ -258,11 +251,10 @@ term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: CORE_OS INICIADO")
+print(" RED_INDUSTRIES :: SISTEMA DE TERROR")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Painel Cyberpunk Ativo.")
-print(" > Equipe na Whitelist sincronizada.")
+print(" > Alarme Nivel Wither configurado.")
 print(" > Pressione [Q] para DESLIGAR.")
 
 local running = true

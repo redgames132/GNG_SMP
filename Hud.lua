@@ -1,6 +1,6 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (ULTIMATE)
--- Renderização Inteligente (ZERO PISCAR)
+-- HUD GLASSES - RED_INDUSTRIES_OS (CRISTAL)
+-- Fundo Transparente + Zero Piscar
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -33,11 +33,10 @@ local aliados = {
     ["cadipadi"] = true
 }
 
--- Cores
-local C_TRANS = 0
-local C_FUNDO_TEXTO = colors.black 
+-- O Segredo da Visão Limpa: Fundo 100% Invisível
+local C_TRANS = 0 
 local C_VERMELHO = colors.red
-local C_CINZA = colors.gray
+local C_CINZA = colors.lightGray -- Deixei o cinza mais claro para dar contraste nas pedras
 local C_BRANCO = colors.white
 local C_ALERTA = colors.orange
 local C_CYAN = colors.cyan
@@ -91,12 +90,11 @@ local function getDirection(dx, dz)
 end
 
 -- ==========================================
--- 1. DESENHO ESTÁTICO (RODA SÓ UMA VEZ)
+-- 1. DESENHO ESTÁTICO (MOLDURAS E BORDAS)
 -- ==========================================
 local function drawStaticHUD()
     hud.setBackgroundColour(C_TRANS)
     hud.clear()
-    hud.setBackgroundColour(C_FUNDO_TEXTO)
 
     local midX = math.floor(w/2)
     local midY = math.floor(h/2)
@@ -135,10 +133,11 @@ local function drawStaticHUD()
 end
 
 -- ==========================================
--- 2. DESENHO DINÂMICO (RODA A CADA 0.1s SEM CLEAR)
+-- 2. DESENHO DINÂMICO (ATUALIZAÇÃO INVISÍVEL)
 -- ==========================================
 local function updateDynamicHUD()
-    hud.setBackgroundColour(C_FUNDO_TEXTO)
+    -- Garante que o fundo de todo o texto seja sempre transparente
+    hud.setBackgroundColour(C_TRANS)
 
     local myX, myY, myZ = baseX, baseY, baseZ
     local myHealth, myFood = 20, 20
@@ -204,9 +203,7 @@ local function updateDynamicHUD()
     end
 
     table.sort(dadosRadar, function(a, b) return a.d < b.d end)
-    local distBase = math.floor(math.sqrt((myX - baseX)^2 + (myY - baseY)^2 + (myZ - baseZ)^2))
 
-    -- Sirene
     if inimigosProximos > 0 and speaker then
         if frame % 10 == 0 then speaker.playSound("entity.wither.spawn", 3.0, 0.5)
         elseif frame % 10 == 5 then 
@@ -218,13 +215,13 @@ local function updateDynamicHUD()
     local hexCode = string.format("0x%04X", math.random(0, 65535))
     local midX, midY = math.floor(w/2), math.floor(h/2)
 
-    -- Atualiza Target Lock
+    -- Alvo na Mira
     hud.setCursorPos(midX - 12, midY - 5)
     if inimigoMaisProximo then
         hud.setTextColour(C_ALERTA)
         hud.write(string.format("%-25s", "ALVO: " .. inimigoMaisProximo .. " (" .. menorDistanciaInimigo .. "m)"))
     else
-        hud.write(string.format("%-25s", "")) -- Apaga se nao houver inimigo
+        hud.write(string.format("%-25s", "")) 
     end
 
     -- Jarvis
@@ -258,20 +255,22 @@ local function updateDynamicHUD()
         hud.write(string.format("%-50s", ""))
     end
 
-    -- Redesenha o Círculo do Radar (Para limpar pontos antigos)
-    hud.setTextColour(C_CINZA)
-    for _, pt in ipairs(circlePoints) do
-        hud.setCursorPos(pt.x, pt.y) hud.write(".")
-    end
-    hud.setCursorPos(radarCX, radarCY) hud.setTextColour(C_BRANCO) hud.write("+")
-    
-    -- Limpa a parte de dentro do radar com espaços
+    -- Limpa a parte de dentro do radar usando o fundo transparente
     for rY = radarCY - 5, radarCY + 5 do
         hud.setCursorPos(radarCX - 9, rY)
         hud.write("                  ")
     end
 
-    -- Desenha os Alvos no radar
+    -- Redesenha Borda e Centro do Radar
+    hud.setTextColour(C_CINZA)
+    for _, pt in ipairs(circlePoints) do
+        hud.setCursorPos(pt.x, pt.y) hud.write(".")
+    end
+    hud.setCursorPos(radarCX, radarCY) hud.setTextColour(C_BRANCO) hud.write("+")
+    hud.setCursorPos(radarCX, radarCY - visualRadius) hud.setTextColour(C_CINZA) hud.write("N")
+    hud.setCursorPos(radarCX, radarCY + visualRadius) hud.write("S")
+
+    -- Pontos dos Jogadores
     for _, alvo in ipairs(dadosRadar) do
         if alvo.d <= raioAlerta then
             local scale = visualRadius / raioAlerta
@@ -283,13 +282,13 @@ local function updateDynamicHUD()
         end
     end
 
-    -- Atualiza Assistente de Combate
+    -- Assistente Vital Inferior
     local blY = h - 8
     hud.setCursorPos(1, blY + 1)
     hud.setTextColour(C_VERMELHO) hud.write("| ")
     
     if myHealth <= 10 then hud.setTextColour(C_ALERTA) hud.write(string.format("%-30s", "[!] DANO CRITICO!"))
-    elseif spawnRisk then hud.setTextColour(C_ALERTA) hud.write(string.format("%-30s", "[!] RISCO DE SPAWN (Luz "..currentLight..")"))
+    elseif spawnRisk then hud.setTextColour(C_ALERTA) hud.write(string.format("%-30s", "[!] RISCO DE SPAWN ("..currentLight..")"))
     elseif myFood <= 6 then hud.setTextColour(C_ALERTA) hud.write(string.format("%-30s", "[!] FOME ALTA!"))
     else hud.setTextColour(C_VERDE) hud.write(string.format("%-30s", "SISTEMAS VITAIS: OK")) end
 
@@ -306,13 +305,12 @@ local function updateDynamicHUD()
             printados = printados + 1
         end
     end
-    -- Limpa as linhas restantes se tiver menos inimigos
     for r = row, 5 do
         hud.setCursorPos(1, blY + r)
         hud.write(string.format("| %-30s", ""))
     end
 
-    -- Atualiza Telemetria (Substituindo com espaços para não piscar)
+    -- Telemetria Superior Direita
     local trX = w - 30
     hud.setCursorPos(trX, 2)
     hud.setTextColour(C_CINZA) hud.write("  XYZ   : ") hud.setTextColour(C_BRANCO)
@@ -330,7 +328,7 @@ local function updateDynamicHUD()
     hud.setTextColour(C_CINZA) hud.write("  LUZ   : ") hud.setTextColour(spawnRisk and C_ALERTA or C_VERDE)
     hud.write(string.format("%-17s", currentLight .. "/15"))
 
-    -- Atualiza Core OS
+    -- Core OS Inferior Direito
     local brY = h - 4
     hud.setCursorPos(trX, brY + 1)
     hud.setTextColour(C_CINZA) hud.write("  SYNC : ") hud.setTextColour(C_BRANCO)
@@ -356,13 +354,13 @@ term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: ANTI-FLICKER ATIVO")
+print(" RED_INDUSTRIES :: VISOR CRISTALINO")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Renderizacao Inteligente Ligada.")
+print(" > Telas limpas e transparentes.")
 print(" > Pressione [Q] para DESLIGAR.")
 
-drawStaticHUD() -- Desenha a base estática apenas uma vez!
+drawStaticHUD() 
 
 local running = true
 local timer = os.startTimer(0.1)
@@ -371,7 +369,7 @@ while running do
     local event, p1 = os.pullEvent()
 
     if event == "timer" and p1 == timer then
-        updateDynamicHUD() -- Atualiza apenas o texto!
+        updateDynamicHUD() 
         frame = frame + 1
         timer = os.startTimer(0.1)
     elseif event == "key" then

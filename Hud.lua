@@ -21,13 +21,13 @@ hud.setSize(100, 50) -- Resolução que deixa a UI pequena
 -- CONFIGURAÇÕES (MUDE AQUI)
 -- ==========================================
 local meuNick = "redgames132"
-local raioAlerta = 100
+local raioAlerta = 150
 
 -- Lista do seu Time (Coloque os nicks dos seus amigos como true)
 local aliados = {
     [meuNick] = true,
     ["cadipadi"] = true,
-    ["goonerstickel69"] = true
+    ["goonerstickle69"] = true
     ["KAIOX_NEGROX"] = true
 }
 

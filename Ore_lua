@@ -1,5 +1,5 @@
 -- ==========================================
--- RED_INDUSTRIES - POCKET ORE SCANNER
+-- RED_INDUSTRIES - POCKET ORE SCANNER (VISUAL LIMPO)
 -- ==========================================
 
 local scanner = peripheral.find("geo_scanner") or peripheral.find("geoScanner")
@@ -11,19 +11,16 @@ if not scanner then
     print("ERRO CRITICO:")
     term.setTextColor(colors.white)
     print("Geo Scanner nao detectado no Pocket!")
-    print("\nCertifique-se de estar segurando um 'Geoscanning Pocket Computer'.")
     return
 end
 
--- O Geo Scanner geralmente tem um alcance máximo gratuito de 8 blocos
 local radius = 8
 local ores = {}
 local status = "AGUARDANDO COMANDO..."
 local w, h = term.getSize()
 local cx = math.floor(w / 2)
-local cy = 9 -- Centro perfeitamente ajustado para a tela do Pocket
+local cy = 9
 
--- Inteligência de cores baseada no nome do minério
 local function getOreColor(name)
     local n = string.lower(name)
     if string.find(n, "diamond") then return colors.cyan end
@@ -34,15 +31,16 @@ local function getOreColor(name)
     if string.find(n, "redstone") then return colors.red end
     if string.find(n, "lapis") then return colors.blue end
     if string.find(n, "coal") then return colors.gray end
-    if string.find(n, "debris") then return colors.magenta end -- Ancient Debris
+    if string.find(n, "debris") then return colors.magenta end
     if string.find(n, "quartz") then return colors.white end
     if string.find(n, "zinc") then return colors.lightGray end
     if string.find(n, "osmium") then return colors.lightBlue end
     if string.find(n, "uranium") then return colors.green end
-    return colors.lightGray
+    return colors.lightGray -- Cor padrão para outros minérios
 end
 
 local function drawRadar()
+    -- Fundo preto limpo
     term.setBackgroundColor(colors.black)
     term.clear()
 
@@ -55,50 +53,31 @@ local function drawRadar()
     term.write("RED_INDUSTRIES SCANNER")
     term.setBackgroundColor(colors.black)
 
-    -- 2. Grade Redonda (Fundo)
-    term.setTextColor(colors.green)
-    for i = 0, 359, 15 do
-        local rad = math.rad(i)
-        local px = cx + math.floor(math.cos(rad) * radius * 1.5)
-        local py = cy + math.floor(math.sin(rad) * radius)
-        if px >= 1 and px <= w and py >= 2 and py <= h - 3 then
-            term.setCursorPos(px, py)
-            term.write(".")
-        end
-    end
-
-    -- Centro (Sua Posição)
+    -- 2. Centro (Sua Posição)
     term.setCursorPos(cx, cy)
     term.setTextColor(colors.white)
     term.write("X")
 
-    -- 3. Desenhar Minérios Encontrados
+    -- 3. Desenhar Minérios como Cubos Coloridos
     for _, b in ipairs(ores) do
         local px = cx + math.floor(b.x * 1.5)
         local py = cy + b.z
         
-        if px >= 1 and px <= w and py >= 2 and py <= h - 3 then
-            term.setCursorPos(px, py)
-            term.setTextColor(getOreColor(b.name))
-            
-            -- Lógica 3D Visual (Acima, Abaixo ou no Nível)
-            local char = "="
-            if b.y > 2 then char = "^"
-            elseif b.y < -2 then char = "v"
-            end
-            
-            -- Não sobrepor o X do jogador
+        -- Garante que o cubo vai ser desenhado dentro da tela livre
+        if px >= 1 and px <= w and py >= 2 and py <= h - 2 then
+            -- Não desenha por cima do "X" do jogador
             if not (px == cx and py == cy) then
-                term.write(char)
+                term.setCursorPos(px, py)
+                -- O segredo do cubo: Muda a cor do fundo e escreve um espaço vazio!
+                term.setBackgroundColor(getOreColor(b.name))
+                term.write(" ") 
             end
         end
     end
+    -- Reseta o fundo para preto antes de desenhar os menus
+    term.setBackgroundColor(colors.black)
 
-    -- 4. Interface e Controles (Botão Tátil)
-    term.setCursorPos(1, h - 2)
-    term.setTextColor(colors.lightGray)
-    term.write("Lgnd: ^ Acima  v Abaixo  = Nivel")
-    
+    -- 4. Interface (Botão)
     term.setCursorPos(1, h - 1)
     term.setBackgroundColor(colors.gray)
     term.setTextColor(colors.yellow)
@@ -108,7 +87,7 @@ local function drawRadar()
     term.write(txtBtn)
     term.setBackgroundColor(colors.black)
 
-    -- Barra de Status
+    -- 5. Barra de Status
     term.setCursorPos(1, h)
     term.write(string.rep(" ", w))
     term.setCursorPos(1, h)
@@ -124,11 +103,10 @@ local function drawRadar()
 end
 
 local function doScan()
-    status = "ESCANEANDO O TERRENO..."
+    status = "ESCANEANDO..."
     drawRadar()
     
     local res, err
-    -- Diferentes versões do mod mudam o nome da função, pcall previne crash
     local success = pcall(function()
         if scanner.scanBlocks then
             res, err = scanner.scanBlocks(radius)
@@ -140,30 +118,20 @@ local function doScan()
     if success and res then
         ores = {}
         for _, b in ipairs(res) do
-            -- Filtra blocos que contenham "ore" (minério) ou "debris" (Netherita)
+            -- Filtra tudo que for minério (ore) ou detritos (debris) no sistema
             if string.find(b.name, "ore") or string.find(b.name, "debris") then
                 table.insert(ores, b)
             end
         end
-        
-        -- Truque de Renderização: Ordena a lista para desenhar minérios no seu nível de altura (Y) por último, para eles ficarem por cima no mapa visual.
-        table.sort(ores, function(a, b)
-            return math.abs(a.y) > math.abs(b.y)
-        end)
-        
-        status = "CONCLUIDO: " .. #ores .. " minerios"
+        status = "CONCLUIDO: " .. #ores .. " encontrados"
     else
-        if err then
-            status = "ERRO: Cooldown/Sem energia"
-        else
-            status = "ERRO: Falha no Scanner"
-        end
+        status = "ERRO: " .. (err or "Falha no Scanner")
     end
     drawRadar()
 end
 
 -- ==========================================
--- LOOP DE EVENTOS (TOUCH)
+-- GERENCIADOR DE ENTRADAS (TOUCH E TECLADO)
 -- ==========================================
 local running = true
 drawRadar()
@@ -171,22 +139,25 @@ drawRadar()
 while running do
     local event, p1, p2, p3 = os.pullEvent()
     
-    -- No Pocket Computer, tocar na tela gera 'mouse_click', e não 'monitor_touch'
     if event == "mouse_click" then
         local clickX, clickY = p2, p3
-        -- Checa se o toque foi na linha do botão "[ ESCANEAR ]"
+        -- Se clicar na linha do botão
         if clickY == h - 1 then
             doScan()
         end
     elseif event == "key" then
-        if p1 == keys.f then
+        -- Tecla Q para sair
+        if p1 == keys.q then
             running = false
+        -- Espaço ou Enter para escanear
         elseif p1 == keys.enter or p1 == keys.space then
             doScan()
         end
     end
 end
 
+-- Limpa a tela ao fechar
+term.setBackgroundColor(colors.black)
 term.clear()
 term.setCursorPos(1,1)
 term.setTextColor(colors.green)

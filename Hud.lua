@@ -1,12 +1,13 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (DUO V3)
--- Grade Holográfica + Clean Center + UI Pro
+-- HUD GLASSES - RED_INDUSTRIES_OS (DUO V5)
+-- Triple-Radar (Global + Local + Minerios)
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
 local detector = peripheral.find("player_detector")
 local speaker = peripheral.find("speaker")
 local env = peripheral.find("environmentDetector") or peripheral.find("environment_detector")
+local geo = peripheral.find("geoScanner") or peripheral.find("geo_scanner")
 
 if not hud then
     term.clear()
@@ -20,10 +21,12 @@ hud.setSize(100, 50)
 local w, h = hud.getSize()
 
 -- ==========================================
--- CONFIGURAÇÕES DA EQUIPE
+-- CONFIGURAÇÕES DA EQUIPE E BASE
 -- ==========================================
+local meuNick = "redgames132"
 local baseX, baseY, baseZ = -573, 57, -1446
-local raioAlerta = 250
+local raioGlobal = 250
+local raioLocal = 50
 
 local offsetMiraX = 0  
 local offsetMiraY = 1  
@@ -46,37 +49,50 @@ local C_VERDE = colors.lime
 local C_AZUL_CLARO = colors.lightBlue
 local C_CINZA = colors.gray
 local C_CINZA_ESCURO = colors.lightGray
+local C_DIAMANTE = colors.lightBlue
+local C_ESMERALDA = colors.lime
+local C_OURO = colors.yellow
+local C_FERRO = colors.white
 
 local frame = 0
 local speedTicks = 0
 local startTime = os.clock()
 
+-- Banco de Dados Geo Scanner
+local dadosMinerios = {}
+local geoCooldown = 0
+
 -- Sistema JARVIS
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Saggin",
-    "JARVIS: Homem misterioso.",
-    "JARVIS: Tung tung.",
-    "JARVIS: Meu pe.",
-    "JARVIS: Kalip.",
-    "JARVIS: Redarelhada de aco.",
-    "JARVIS: PimPimPong.",
-    "JARVIS: Lembre se de alimentar o seu homem misterioso"
+    "JARVIS: Radares online. Vantagem tatica estabelecida.",
+    "JARVIS: Defesa de perimetro ativada. Monitorando a base.",
+    "JARVIS: Trabalhem em conjunto. O fogo cruzado e letal.",
+    "JARVIS: Acompanhe os indicadores de elevacao no radar.",
+    "JARVIS: O cenario atual favorece emboscadas. Atencao.",
+    "JARVIS: O modulo GeoScanner procura por minerais de alto valor.",
+    "JARVIS: Rede neural estabilizada entre os operadores."
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0
 local jarvisTempoTela = 0
 
--- Geometria do Radar
-local radarCX, radarCY = 14, 10
-local visualRadius = 7
-local circlePoints = {}
+-- Geometria dos 3 Radares
+local radar1CX, radar1CY = 14, 8   -- Global (Base)
+local radar2CX, radar2CY = 14, 22  -- Local (Você)
+local radar3CX, radar3CY = 14, 37  -- Minérios (Geo Scanner)
+
+local radius1, radius2, radius3 = 5, 5, 5
+local circle1Points, circle2Points, circle3Points = {}, {}, {}
+
 for i = 0, 359, 15 do
     local rad = math.rad(i)
-    table.insert(circlePoints, {
-        x = radarCX + math.floor(math.cos(rad) * visualRadius * 1.5),
-        y = radarCY + math.floor(math.sin(rad) * visualRadius)
-    })
+    local rx = math.floor(math.cos(rad) * radius1 * 1.5)
+    local ry = math.floor(math.sin(rad) * radius1)
+    
+    table.insert(circle1Points, { x = radar1CX + rx, y = radar1CY + ry })
+    table.insert(circle2Points, { x = radar2CX + rx, y = radar2CY + ry })
+    table.insert(circle3Points, { x = radar3CX + rx, y = radar3CY + ry })
 end
 
 local function formatTime(t)
@@ -124,19 +140,21 @@ local function drawStaticHUD()
     hud.clear()
     hud.setTextColour(C_AZUL_CLARO)
 
-    hud.setCursorPos(1, 1) hud.write("+==[ RADAR DA BASE ]==============-")
+    hud.setCursorPos(1, 1) hud.write("+==[ GLOBAL: BASE ]===============-")
     hud.setCursorPos(1, 2) hud.write("||")
-    hud.setCursorPos(1, 3) hud.write("||")
+    
+    hud.setCursorPos(1, 15) hud.write("+==[ LOCAL: VOCE ]================-")
+    hud.setCursorPos(1, 16) hud.write("||")
+
+    hud.setCursorPos(1, 30) hud.write("+==[ GEO SCANNER ]================-")
+    hud.setCursorPos(1, 31) hud.write("||")
 
     hud.setCursorPos(w - 38, 1) hud.write("-===================[ TELEMETRIA ]==+")
     hud.setCursorPos(w - 1, 2) hud.write("||")
-    hud.setCursorPos(w - 1, 3) hud.write("||")
 
-    hud.setCursorPos(1, h - 2) hud.write("||")
     hud.setCursorPos(1, h - 1) hud.write("||")
     hud.setCursorPos(1, h)     hud.write("+==[ EQUIPE E VITAIS ]============-")
 
-    hud.setCursorPos(w - 1, h - 2) hud.write("||")
     hud.setCursorPos(w - 1, h - 1) hud.write("||")
     hud.setCursorPos(w - 34, h)    hud.write("-======================[ CORE OS ]==+")
 
@@ -153,24 +171,32 @@ end
 local function updateDynamicHUD()
     hud.setBackgroundColour(C_TRANS)
 
+    local myX, myY, myZ = baseX, baseY, baseZ
     local inimigosProximos = 0
     local inimigoMaisProximo = nil
-    local menorDistanciaInimigo = 99999
+    local menorDistanciaDeMim = 99999
     local dadosRadar = {}
     
     local currentBiome, currentLight = "OFFLINE", 15
     local spawnRisk = false
 
+    -- Sensores do Ambiente
     if env then
         pcall(function() currentBiome = env.getBiome() end)
         pcall(function() currentLight = env.getLightLevel() end)
         if currentLight < 7 then spawnRisk = true end
     end
     
+    -- Leitura dos Jogadores
     if detector then
         for _, op in ipairs(operadores) do tracker[op].online = false end
         speedTicks = speedTicks + 1
         
+        local sucMy, myPos = pcall(detector.getPlayerPos, meuNick)
+        if sucMy and type(myPos) == "table" and myPos.x then
+            myX, myY, myZ = math.floor(myPos.x), math.floor(myPos.y), math.floor(myPos.z)
+        end
+
         local suc, pList = pcall(detector.getOnlinePlayers)
         if suc and type(pList) == "table" then
             for _, p in ipairs(pList) do
@@ -200,15 +226,24 @@ local function updateDynamicHUD()
                             end
                         end
                     else
-                        local dx, dy, dz = pos.x - baseX, pos.y - baseY, pos.z - baseZ
-                        local dist = math.floor(math.sqrt(dx*dx + dy*dy + dz*dz))
-                        local isAliado = aliados[p] == true
-                        table.insert(dadosRadar, {nome = p, d = dist, dx = dx, dy = dy, dz = dz, aliado = isAliado})
+                        local dxB, dzB = pos.x - baseX, pos.z - baseZ
+                        local distBase = math.floor(math.sqrt(dxB*dxB + (pos.y - baseY)^2 + dzB*dzB))
                         
-                        if dist <= raioAlerta and not isAliado then
+                        local dxM, dyM, dzM = pos.x - myX, pos.y - myY, pos.z - myZ
+                        local distMe = math.floor(math.sqrt(dxM*dxM + dyM*dyM + dzM*dzM))
+                        
+                        local isAliado = aliados[p] == true
+                        table.insert(dadosRadar, {
+                            nome = p, 
+                            dB = distBase, dxB = dxB, dzB = dzB,
+                            dM = distMe, dxM = dxM, dyM = dyM, dzM = dzM,
+                            aliado = isAliado
+                        })
+                        
+                        if distMe <= raioGlobal and not isAliado then
                             inimigosProximos = inimigosProximos + 1
-                            if dist < menorDistanciaInimigo then
-                                menorDistanciaInimigo = dist
+                            if distMe < menorDistanciaDeMim then
+                                menorDistanciaDeMim = distMe
                                 inimigoMaisProximo = p
                             end
                         end
@@ -219,35 +254,51 @@ local function updateDynamicHUD()
         if speedTicks >= 10 then speedTicks = 0 end
     end
 
-    table.sort(dadosRadar, function(a, b) return a.d < b.d end)
+    table.sort(dadosRadar, function(a, b) return a.dM < b.dM end)
 
-    if inimigosProximos > 0 and speaker then
-        if frame % 10 == 0 then speaker.playSound("entity.wither.spawn", 3.0, 0.5)
-        elseif frame % 10 == 5 then speaker.playSound("entity.ghast.scream", 3.0, 0.6) end
+    -- Leitura do Geo Scanner (A cada 20 frames / 2 segundos para evitar lag)
+    if geo and frame % 20 == 0 then
+        local sucGeo, scanResult = pcall(geo.scan, 12) -- Escaneia num raio de 12 blocos
+        if sucGeo and type(scanResult) == "table" then
+            dadosMinerios = {}
+            for _, block in ipairs(scanResult) do
+                local name = string.lower(block.name)
+                -- Filtra apenas os minérios principais
+                if string.find(name, "ore") or string.find(name, "ancient_debris") then
+                    local color = C_CINZA
+                    if string.find(name, "diamond") then color = C_DIAMANTE
+                    elseif string.find(name, "emerald") then color = C_ESMERALDA
+                    elseif string.find(name, "gold") then color = C_OURO
+                    elseif string.find(name, "iron") then color = C_FERRO
+                    elseif string.find(name, "ancient_debris") then color = C_VERMELHO end
+                    
+                    table.insert(dadosMinerios, {x = block.x, y = block.y, z = block.z, col = color})
+                end
+            end
+        end
     end
 
     local midX = math.floor(w/2) + offsetMiraX
     local midY = math.floor(h/2) + offsetMiraY
 
     -- ==========================================
-    -- SISTEMA DEFCON E ALVOS
+    -- SISTEMA DEFCON (TOPO CENTRAL)
     -- ==========================================
     local defconLvl = 5
     local defconCol = C_VERDE
     local defconTxt = "SEGURO"
     
     if inimigosProximos > 0 then
-        if menorDistanciaInimigo <= 30 then defconLvl, defconCol, defconTxt = 1, C_VERMELHO, "INVASAO"
-        elseif menorDistanciaInimigo <= 80 then defconLvl, defconCol, defconTxt = 2, C_VERMELHO, "PERIGO"
-        elseif menorDistanciaInimigo <= 150 then defconLvl, defconCol, defconTxt = 3, C_ALERTA, "ALERTA"
+        if menorDistanciaDeMim <= 30 then defconLvl, defconCol, defconTxt = 1, C_VERMELHO, "INVASAO"
+        elseif menorDistanciaDeMim <= 80 then defconLvl, defconCol, defconTxt = 2, C_VERMELHO, "PERIGO"
+        elseif menorDistanciaDeMim <= 150 then defconLvl, defconCol, defconTxt = 3, C_ALERTA, "ALERTA"
         else defconLvl, defconCol, defconTxt = 4, C_AMARELO, "CAUTELA" end
     end
-
     writeData(midX - 10, 2, "DEFCON " .. defconLvl .. " :: ", C_BRANCO, defconTxt, defconCol, 15)
 
-    -- Alvo travado (Centralizado e sem a mira)
+    -- Alvo travado (Mostrando a distância real de você)
     if inimigoMaisProximo then
-        writeData(midX - 12, midY - 2, ">> ALVO: ", C_ALERTA, inimigoMaisProximo .. " ("..menorDistanciaInimigo.."m)", C_VERMELHO, 25)
+        writeData(midX - 12, midY - 2, ">> ALVO: ", C_ALERTA, inimigoMaisProximo .. " ("..menorDistanciaDeMim.."m)", C_VERMELHO, 25)
     else
         writeData(midX - 12, midY - 2, "", C_ALERTA, "", C_VERMELHO, 35)
     end
@@ -272,7 +323,6 @@ local function updateDynamicHUD()
             if jarvisProgresso < #jarvisAtual then
                 jarvisProgresso = jarvisProgresso + 2 
                 if jarvisProgresso > #jarvisAtual then jarvisProgresso = #jarvisAtual end
-                if speaker then speaker.playSound("block.note_block.bit", 2.0, 1.5 + (math.random(-2,2)*0.1)) end
             else
                 jarvisTempoTela = jarvisTempoTela - 1
                 if jarvisTempoTela <= 0 then jarvisAtual = "" end
@@ -287,40 +337,22 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- MINIMAPA (EFEITO GRADE HOLOGRÁFICA)
+    -- RADAR 1: GLOBAL (FOCADO NA BASE)
     -- ==========================================
-    -- Limpa a área do radar
-    for rY = radarCY - 7, radarCY + 7 do
-        hud.setCursorPos(radarCX - 12, rY)
-        hud.write("                        ")
-    end
-
-    -- Desenha a grade interna para dar efeito de tela (sonar)
+    for rY = radar1CY - 6, radar1CY + 6 do hud.setCursorPos(radar1CX - 12, rY) hud.write("                        ") end
     hud.setTextColour(C_CINZA_ESCURO)
-    for rY = radarCY - 5, radarCY + 5 do
-        hud.setCursorPos(radarCX, rY)
-        hud.write("|")
-    end
-    hud.setCursorPos(radarCX - 8, radarCY)
-    hud.write("-------+-------")
+    for rY = radar1CY - 4, radar1CY + 4 do hud.setCursorPos(radar1CX, rY) hud.write("|") end
+    hud.setCursorPos(radar1CX - 7, radar1CY) hud.write("-------+-------")
 
-    -- Desenha o aro exterior
     hud.setTextColour(C_AZUL_CLARO)
-    for _, pt in ipairs(circlePoints) do
-        hud.setCursorPos(pt.x, pt.y) hud.write(".")
-    end
-    
-    -- Marca o centro (Base)
-    hud.setCursorPos(radarCX, radarCY) 
-    hud.setTextColour(C_AMARELO) 
-    hud.write("B")
+    for _, pt in ipairs(circle1Points) do hud.setCursorPos(pt.x, pt.y) hud.write(".") end
+    hud.setCursorPos(radar1CX, radar1CY) hud.setTextColour(C_AMARELO) hud.write("B")
 
-    -- Desenha as Ameaças/Aliados
     for _, alvo in ipairs(dadosRadar) do
-        if alvo.d <= raioAlerta then
-            local scale = visualRadius / raioAlerta
-            local plotX = radarCX + math.floor(alvo.dx * scale * 1.5)
-            local plotY = radarCY + math.floor(alvo.dz * scale)
+        if alvo.dB <= raioGlobal then
+            local scale = radius1 / raioGlobal
+            local plotX = radar1CX + math.floor(alvo.dxB * scale * 1.5)
+            local plotY = radar1CY + math.floor(alvo.dzB * scale)
             hud.setCursorPos(plotX, plotY)
             hud.setTextColour(alvo.aliado and C_VERDE or C_ALERTA)
             hud.write(alvo.aliado and "O" or "X")
@@ -328,62 +360,117 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
+    -- RADAR 2: LOCAL (FOCADO EM VOCÊ - 50m)
+    -- ==========================================
+    for rY = radar2CY - 6, radar2CY + 6 do hud.setCursorPos(radar2CX - 12, rY) hud.write("                        ") end
+    hud.setTextColour(C_CINZA_ESCURO)
+    for rY = radar2CY - 4, radar2CY + 4 do hud.setCursorPos(radar2CX, rY) hud.write("|") end
+    hud.setCursorPos(radar2CX - 7, radar2CY) hud.write("-------+-------")
+
+    hud.setTextColour(C_VERMELHO)
+    for _, pt in ipairs(circle2Points) do hud.setCursorPos(pt.x, pt.y) hud.write(".") end
+    hud.setCursorPos(radar2CX, radar2CY) hud.setTextColour(C_CYAN) hud.write("V")
+
+    for _, alvo in ipairs(dadosRadar) do
+        if alvo.dM <= raioLocal then
+            local scale = radius2 / raioLocal
+            local plotX = radar2CX + math.floor(alvo.dxM * scale * 1.5)
+            local plotY = radar2CY + math.floor(alvo.dzM * scale)
+            hud.setCursorPos(plotX, plotY)
+            hud.setTextColour(alvo.aliado and C_VERDE or C_BRANCO)
+            hud.write(alvo.aliado and "O" or "X")
+        end
+    end
+
+    -- ==========================================
+    -- RADAR 3: GEO SCANNER (MINÉRIOS - 12m)
+    -- ==========================================
+    for rY = radar3CY - 6, radar3CY + 6 do hud.setCursorPos(radar3CX - 12, rY) hud.write("                        ") end
+    hud.setTextColour(C_CINZA_ESCURO)
+    for rY = radar3CY - 4, radar3CY + 4 do hud.setCursorPos(radar3CX, rY) hud.write("|") end
+    hud.setCursorPos(radar3CX - 7, radar3CY) hud.write("-------+-------")
+
+    if not geo then
+        hud.setCursorPos(radar3CX - 6, radar3CY + 1)
+        hud.setTextColour(C_VERMELHO)
+        hud.write("[ OFFLINE ]")
+    else
+        hud.setTextColour(C_ESMERALDA)
+        for _, pt in ipairs(circle3Points) do hud.setCursorPos(pt.x, pt.y) hud.write(".") end
+        hud.setCursorPos(radar3CX, radar3CY) hud.setTextColour(C_CYAN) hud.write("V")
+
+        -- Mapeia os minérios na tela
+        for _, minerio in ipairs(dadosMinerios) do
+            -- O GeoScanner retorna posições X e Z relativas!
+            local scale = radius3 / 12 
+            local plotX = radar3CX + math.floor(minerio.x * scale * 1.5)
+            local plotY = radar3CY + math.floor(minerio.z * scale)
+            
+            -- Mantém os plots dentro do limite do círculo 3 visual
+            if plotX > radar3CX - 9 and plotX < radar3CX + 9 and plotY > radar3CY - 6 and plotY < radar3CY + 6 then
+                hud.setCursorPos(plotX, plotY)
+                hud.setTextColour(minerio.col)
+                hud.write("*")
+            end
+        end
+    end
+
+    -- ==========================================
     -- SINAIS VITAIS E LOG
     -- ==========================================
-    local blY = h - 9
-    
+    local blY = h - 7
     local op1 = tracker["redgames132"]
     if op1.online then
         local bar1HP = getProgressBar(op1.hp, 20, 6)
         local bar1Fd = getProgressBar(op1.food, 20, 6)
-        writeData(3, blY + 1, "RED :: ", C_VERMELHO, "HP:"..bar1HP.." FD:"..bar1Fd, C_BRANCO, 20)
+        writeData(3, blY, "RED :: ", C_VERMELHO, "HP:"..bar1HP.." FD:"..bar1Fd, C_BRANCO, 20)
     else
-        writeData(3, blY + 1, "RED :: ", C_VERMELHO, "[ OFFLINE ]", C_CINZA, 20)
+        writeData(3, blY, "RED :: ", C_VERMELHO, "[ OFFLINE ]", C_CINZA, 20)
     end
 
     local op2 = tracker["cadipadi"]
     if op2.online then
         local bar2HP = getProgressBar(op2.hp, 20, 6)
         local bar2Fd = getProgressBar(op2.food, 20, 6)
-        writeData(3, blY + 2, "CAD :: ", C_CYAN, "HP:"..bar2HP.." FD:"..bar2Fd, C_BRANCO, 20)
+        writeData(3, blY + 1, "CAD :: ", C_CYAN, "HP:"..bar2HP.." FD:"..bar2Fd, C_BRANCO, 20)
     else
-        writeData(3, blY + 2, "CAD :: ", C_CYAN, "[ OFFLINE ]", C_CINZA, 20)
+        writeData(3, blY + 1, "CAD :: ", C_CYAN, "[ OFFLINE ]", C_CINZA, 20)
     end
 
-    hud.setCursorPos(3, blY + 3)
+    hud.setCursorPos(3, blY + 2)
     hud.setTextColour(C_AZUL_CLARO)
-    hud.write("ALVOS (ELEVACAO):")
+    hud.write("ALVOS (DE VOCE):")
 
-    local row = 4
+    local row = 3
     local printados = 0
     for _, alvo in ipairs(dadosRadar) do
-        if alvo.d <= raioAlerta and printados < 4 then
+        if alvo.dM <= raioGlobal and printados < 4 then
             local icon = alvo.aliado and "[ALIADO]" or "[HOSTIL]"
             local col = alvo.aliado and C_VERDE or C_ALERTA
             local elev = "-"
-            if alvo.dy > 4 then elev = "^" elseif alvo.dy < -4 then elev = "v" end
+            if alvo.dyM > 4 then elev = "^" elseif alvo.dyM < -4 then elev = "v" end
             
-            writeData(3, blY + row, icon, col, " " .. elev .. " " .. string.sub(alvo.nome, 1, 10) .. " " .. alvo.d .. "m", C_BRANCO, 25)
+            writeData(3, blY + row, icon, col, " " .. elev .. " " .. string.sub(alvo.nome, 1, 10) .. " " .. alvo.dM .. "m", C_BRANCO, 25)
             row = row + 1
             printados = printados + 1
         end
     end
-    for r = row, 7 do writeData(3, blY + r, "", C_BRANCO, "", C_BRANCO, 25) end
+    for r = row, 6 do writeData(3, blY + r, "", C_BRANCO, "", C_BRANCO, 25) end
 
     -- ==========================================
-    -- TELEMETRIA
+    -- TELEMETRIA E CORE OS
     -- ==========================================
     local trX = w - 28
     local cycle = getDayCycle(os.time())
 
     if op1.online then
-        writeData(trX, 3, "RED :: ", C_VERMELHO, op1.x..","..op1.y..","..op1.z .. " ("..op1.speed.."b/s)", C_BRANCO, 22)
+        writeData(trX, 3, "RED :: ", C_VERMELHO, op1.x..","..op1.y..","..op1.z, C_BRANCO, 22)
     else
         writeData(trX, 3, "RED :: ", C_VERMELHO, "[ SINAL PERDIDO ]", C_CINZA, 22)
     end
 
     if op2.online then
-        writeData(trX, 4, "CAD :: ", C_CYAN, op2.x..","..op2.y..","..op2.z .. " ("..op2.speed.."b/s)", C_BRANCO, 22)
+        writeData(trX, 4, "CAD :: ", C_CYAN, op2.x..","..op2.y..","..op2.z, C_BRANCO, 22)
     else
         writeData(trX, 4, "CAD :: ", C_CYAN, "[ SINAL PERDIDO ]", C_CINZA, 22)
     end
@@ -391,9 +478,6 @@ local function updateDynamicHUD()
     writeData(trX, 6, "BIO :: ", C_AZUL_CLARO, string.sub(currentBiome, 1, 20), C_BRANCO, 22)
     writeData(trX, 7, "LUZ :: ", C_AZUL_CLARO, currentLight .. "/15 ("..cycle..")", spawnRisk and C_ALERTA or C_VERDE, 22)
 
-    -- ==========================================
-    -- CORE OS
-    -- ==========================================
     local brY = h - 5
     local trXC = w - 24
     
@@ -416,11 +500,10 @@ term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: DUO-CORE V3")
+print(" RED_INDUSTRIES :: DUO-CORE V5")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Direcao removida (Clean Center).")
-print(" > Grade Holografica inserida no radar.")
+print(" > Modulo Geo Scanner acoplado.")
 print(" > [J] Liga/Desliga Jarvis.")
 print(" > [Q] Desliga o HUD.")
 
@@ -433,8 +516,8 @@ while running do
     local event, p1 = os.pullEvent()
 
     if event == "timer" and p1 == timer then
-        updateDynamicHUD() 
         frame = frame + 1
+        updateDynamicHUD() 
         timer = os.startTimer(0.1)
     elseif event == "key" then
         if p1 == keys.q then
@@ -443,9 +526,6 @@ while running do
             jarvisAtivo = not jarvisAtivo
             if not jarvisAtivo then
                 jarvisAtual = "" 
-                if speaker then speaker.playSound("block.beacon.deactivate", 1.0, 1.0) end
-            else
-                if speaker then speaker.playSound("block.beacon.activate", 1.0, 2.0) end
             end
         end
     end
@@ -456,4 +536,4 @@ hud.clear()
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)
-print("Visor DEFCON encerrado.")
+print("Visor DUO-CORE encerrado.")

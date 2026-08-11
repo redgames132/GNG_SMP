@@ -46,12 +46,15 @@ local speed, speedTicks = 0, 0
 -- Sistema SIGEON PEX
 local sigeonAtivo = true 
 local sigeonDicas = {
-    "SIGEON PEX: Op. Alien, mantenha sua estamina alta.",
-    "SIGEON PEX: Radar local configurado para 50 metros.",
-    "SIGEON PEX: Equipamento RED INDUSTRIES operando 100%.",
-    "SIGEON PEX: O cenario atual favorece emboscadas. Atencao.",
-    "SIGEON PEX: Varredura de perimetro concluida.",
-    "SIGEON PEX: Sistemas operando em capacidade nominal."
+    "SIGEON PEX: Babababindun.",
+    "SIGEON PEX: Silili boy.",
+    "SIGEON PEX: Cuidado tem um homem bebe macaco.",
+    "SIGEON PEX: Vá fetalizar.",
+    "SIGEON PEX: Sulfato de pernas azuis.",
+    "SIGEON PEX: Bebê Sonic azul.",
+    "SIGEON PEX: Franklin Epstein.",
+    "SIGEON PEX: Galalelo galala.",
+    "SIGEON PEX: Tung Tung angel."
 }
 local sigeonAtual = ""
 local sigeonProgresso = 0

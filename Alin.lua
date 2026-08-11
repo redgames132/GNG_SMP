@@ -1,6 +1,6 @@
 -- ==========================================
 -- HUD GLASSES - RED_INDUSTRIES_OS (ALIEN ED.)
--- Custom Logo + Status do Operador (50m)
+-- Sigeon pex + Logo ASCII Segura
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -22,8 +22,8 @@ local w, h = hud.getSize()
 -- ==========================================
 -- CONFIGURAÇÕES DO OPERADOR
 -- ==========================================
-local meuNick = "Alien_Le_pep" -- O sistema agora é do seu amigo
-local raioAlerta = 50          -- Radar limitado a 50 blocos
+local meuNick = "Alien_Le_pep" 
+local raioAlerta = 50          
 
 local offsetMiraX = 0  
 local offsetMiraY = 1  
@@ -43,19 +43,20 @@ local C_CINZA_ESCURO = colors.lightGray
 local lastX, lastY, lastZ = nil, nil, nil
 local speed, speedTicks = 0, 0
 
--- Sistema JARVIS
-local jarvisAtivo = true 
-local jarvisDicas = {
-    "JARVIS: Op. Alien, mantenha sua estamina alta.",
-    "JARVIS: Radar local configurado para 50 metros.",
-    "JARVIS: Equipamento RED INDUSTRIES operando 100%.",
-    "JARVIS: O cenario atual favorece emboscadas. Atencao.",
-    "JARVIS: Varredura de perimetro concluida.",
-    "JARVIS: Sistemas operando em capacidade nominal."
+-- Sistema SIGEON PEX
+local sigeonAtivo = true 
+local sigeonDicas = {
+    "SIGEON PEX: Galalelo galala.",
+    "SIGEON PEX: Tung Tung angel.",
+    "SIGEON PEX: Babababindun .",
+    "SIGEON PEX: Silili boy.",
+    "SIGEON PEX: Cuidado tem um homem bebe macaco.",
+    "SIGEON PEX: Vá fetalizar.",
+    "SIGEON PEX: Sulfato de pernas azuis."
 }
-local jarvisAtual = ""
-local jarvisProgresso = 0
-local jarvisTempoTela = 0
+local sigeonAtual = ""
+local sigeonProgresso = 0
+local sigeonTempoTela = 0
 
 -- Geometria do Radar
 local radarCX, radarCY = 14, 15
@@ -105,17 +106,20 @@ local function drawStaticHUD()
     hud.setCursorPos(w - 1, 3) hud.write("||")
 
     -- ==========================================
-    -- ASCII ART: LOGO RED INDUSTRIES (ESQUERDA)
+    -- ASCII ART SEGURA: LOGO RED INDUSTRIES
+    -- Usando caracteres normais para evitar glitches
     -- ==========================================
     local logoY = 30
     hud.setTextColour(C_VERMELHO)
-    hud.setCursorPos(3, logoY)     hud.write("█▀▀▀█")
-    hud.setCursorPos(3, logoY + 1) hud.write("█▀▀▀ ")
-    hud.setCursorPos(3, logoY + 2) hud.write("█  ▀█")
+    hud.setCursorPos(3, logoY)     hud.write("######\\")
+    hud.setCursorPos(3, logoY + 1) hud.write("     ##")
+    hud.setCursorPos(3, logoY + 2) hud.write("######/")
+    hud.setCursorPos(3, logoY + 3) hud.write("##  \\")
+    hud.setCursorPos(3, logoY + 4) hud.write("##   \\")
     
-    hud.setCursorPos(1, logoY + 4)
+    hud.setCursorPos(1, logoY + 6)
     hud.write("-- R E D --")
-    hud.setCursorPos(1, logoY + 5)
+    hud.setCursorPos(1, logoY + 7)
     hud.setTextColour(C_BRANCO)
     hud.write("INDUSTRIES")
 end
@@ -195,27 +199,27 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- SISTEMA JARVIS
+    -- SISTEMA SIGEON PEX
     -- ==========================================
-    if jarvisAtivo then
-        if jarvisAtual == "" then
+    if sigeonAtivo then
+        if sigeonAtual == "" then
             if math.random(1, 80) == 1 then
-                jarvisAtual = jarvisDicas[math.random(1, #jarvisDicas)]
-                jarvisProgresso = 0
-                jarvisTempoTela = 60
+                sigeonAtual = sigeonDicas[math.random(1, #sigeonDicas)]
+                sigeonProgresso = 0
+                sigeonTempoTela = 60
             end
         end
 
-        if jarvisAtual ~= "" then
-            if jarvisProgresso < #jarvisAtual then
-                jarvisProgresso = jarvisProgresso + 2 
-                if jarvisProgresso > #jarvisAtual then jarvisProgresso = #jarvisAtual end
+        if sigeonAtual ~= "" then
+            if sigeonProgresso < #sigeonAtual then
+                sigeonProgresso = sigeonProgresso + 2 
+                if sigeonProgresso > #sigeonAtual then sigeonProgresso = #sigeonAtual end
                 if speaker then speaker.playSound("block.note_block.bit", 2.0, 1.5 + (math.random(-2,2)*0.1)) end
             else
-                jarvisTempoTela = jarvisTempoTela - 1
-                if jarvisTempoTela <= 0 then jarvisAtual = "" end
+                sigeonTempoTela = sigeonTempoTela - 1
+                if sigeonTempoTela <= 0 then sigeonAtual = "" end
             end
-            local displayString = string.sub(jarvisAtual, 1, math.floor(jarvisProgresso))
+            local displayString = string.sub(sigeonAtual, 1, math.floor(sigeonProgresso))
             writeData(math.floor(midX - (#displayString / 2)), midY + 4, "", C_BRANCO, displayString, C_CYAN, 60)
         else
             writeData(midX - 30, midY + 4, "", C_BRANCO, "", C_CYAN, 60)
@@ -266,8 +270,8 @@ local function updateDynamicHUD()
     writeData(trX, 7, "HP  :: ", C_AZUL_CLARO, barHP, myHealth <= 6 and C_VERMELHO or C_VERDE, 17)
     writeData(trX, 8, "FD  :: ", C_AZUL_CLARO, barFood, myFood <= 6 and C_ALERTA or C_AMARELO, 17)
 
-    local jStatus = jarvisAtivo and "[ ONLINE ]" or "[ OFFLINE ]"
-    local jColor = jarvisAtivo and C_VERDE or C_CINZA
+    local jStatus = sigeonAtivo and "[ ONLINE ]" or "[ OFFLINE ]"
+    local jColor = sigeonAtivo and C_VERDE or C_CINZA
     writeData(trX, 10, "A.I :: ", C_AZUL_CLARO, jStatus, jColor, 17)
 
     -- ==========================================
@@ -298,14 +302,14 @@ end
 -- ==========================================
 term.clear()
 term.setCursorPos(1, 1)
-term.setTextColor(colors.red)
+term.setTextColor(colors.cyan)
 print("======================================")
 print(" RED_INDUSTRIES :: ALIEN EDITION")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Focado no operador: Alien_Le_pep.")
-print(" > Logo personalizada inserida.")
-print(" > [J] Liga/Desliga Jarvis.")
+print(" > Focado exclusivamente no operador.")
+print(" > Assistente Sigeon pex online.")
+print(" > [S] Liga/Desliga Sigeon pex.")
 print(" > [Q] Desliga o HUD.")
 
 drawStaticHUD() 
@@ -322,10 +326,10 @@ while running do
     elseif event == "key" then
         if p1 == keys.q then
             running = false
-        elseif p1 == keys.j then
-            jarvisAtivo = not jarvisAtivo
-            if not jarvisAtivo then
-                jarvisAtual = "" 
+        elseif p1 == keys.s then
+            sigeonAtivo = not sigeonAtivo
+            if not sigeonAtivo then
+                sigeonAtual = "" 
                 if speaker then speaker.playSound("block.beacon.deactivate", 1.0, 1.0) end
             else
                 if speaker then speaker.playSound("block.beacon.activate", 1.0, 2.0) end
@@ -339,4 +343,4 @@ hud.clear()
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)
-print("Visor Alien encerrado.")
+print("Visor ALIEN encerrado.")

@@ -1,11 +1,12 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (LITE)
--- Foco no Jogador: Radar Local + Jarvis
+-- HUD GLASSES - RED_INDUSTRIES_OS (ALIEN ED.)
+-- Custom Logo + Status do Operador (50m)
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
 local detector = peripheral.find("player_detector")
 local speaker = peripheral.find("speaker")
+local env = peripheral.find("environmentDetector") or peripheral.find("environment_detector")
 
 if not hud then
     term.clear()
@@ -19,10 +20,10 @@ hud.setSize(100, 50)
 local w, h = hud.getSize()
 
 -- ==========================================
--- CONFIGURAÇÕES (MUDE O NICK AQUI)
+-- CONFIGURAÇÕES DO OPERADOR
 -- ==========================================
-local meuNick = "NICK_DO_SEU_AMIGO" -- NICK EXATO DO JOGADOR
-local raioAlerta = 100 -- Alcance do radar (em blocos)
+local meuNick = "Alien_Le_pep" -- O sistema agora é do seu amigo
+local raioAlerta = 50          -- Radar limitado a 50 blocos
 
 local offsetMiraX = 0  
 local offsetMiraY = 1  
@@ -45,20 +46,19 @@ local speed, speedTicks = 0, 0
 -- Sistema JARVIS
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Mantenha sua estamina alta para evasao.",
-    "JARVIS: O minimapa e a sua maior vantagem.",
-    "JARVIS: Recuo tatico e uma estrategia valida.",
+    "JARVIS: Op. Alien, mantenha sua estamina alta.",
+    "JARVIS: Radar local configurado para 50 metros.",
+    "JARVIS: Equipamento RED INDUSTRIES operando 100%.",
     "JARVIS: O cenario atual favorece emboscadas. Atencao.",
     "JARVIS: Varredura de perimetro concluida.",
-    "JARVIS: Sistemas operando em capacidade nominal.",
-    "JARVIS: Mantenha seu equipamento sempre reparado."
+    "JARVIS: Sistemas operando em capacidade nominal."
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0
 local jarvisTempoTela = 0
 
 -- Geometria do Radar
-local radarCX, radarCY = 14, 10
+local radarCX, radarCY = 14, 15
 local visualRadius = 7
 local circlePoints = {}
 for i = 0, 359, 15 do
@@ -80,29 +80,44 @@ local function writeData(x, y, label, colLabel, value, colValue, pad)
     hud.write(str .. string.rep(" ", emptySpace))
 end
 
+local function getProgressBar(valor, maximo, tamanho)
+    if valor < 0 then valor = 0 end
+    if valor > maximo then valor = maximo end
+    local preenchido = math.floor((valor / maximo) * tamanho)
+    local vazio = tamanho - preenchido
+    return "[" .. string.rep("|", preenchido) .. string.rep(".", vazio) .. "]"
+end
+
 -- ==========================================
--- 1. DESENHO ESTÁTICO (MOLDURAS)
+-- 1. DESENHO ESTÁTICO E LOGO RED INDUSTRIES
 -- ==========================================
 local function drawStaticHUD()
     hud.setBackgroundColour(C_TRANS)
     hud.clear()
+    
+    -- MOLDURAS
     hud.setTextColour(C_AZUL_CLARO)
-
-    -- Radar Local
-    hud.setCursorPos(1, 1) hud.write("+==[ RADAR DE AREA ]==============-")
+    hud.setCursorPos(1, 1) hud.write("+==[ RADAR LOCAL ]================-")
     hud.setCursorPos(1, 2) hud.write("||")
     hud.setCursorPos(1, 3) hud.write("||")
+    hud.setCursorPos(w - 38, 1) hud.write("-================[ STATUS VITAIS ]==+")
+    hud.setCursorPos(w - 1, 2) hud.write("||")
+    hud.setCursorPos(w - 1, 3) hud.write("||")
 
-    -- Log de Alvos
-    hud.setCursorPos(1, h - 2) hud.write("||")
-    hud.setCursorPos(1, h - 1) hud.write("||")
-    hud.setCursorPos(1, h)     hud.write("+==[ ALVOS PROXIMOS ]=============-")
-
-    hud.setTextColour(C_CINZA)
-    hud.setCursorPos(2, math.floor(h/2) - 1) hud.write("[")
-    hud.setCursorPos(2, math.floor(h/2) + 1) hud.write("[")
-    hud.setCursorPos(w - 1, math.floor(h/2) - 1) hud.write("]")
-    hud.setCursorPos(w - 1, math.floor(h/2) + 1) hud.write("]")
+    -- ==========================================
+    -- ASCII ART: LOGO RED INDUSTRIES (ESQUERDA)
+    -- ==========================================
+    local logoY = 30
+    hud.setTextColour(C_VERMELHO)
+    hud.setCursorPos(3, logoY)     hud.write("█▀▀▀█")
+    hud.setCursorPos(3, logoY + 1) hud.write("█▀▀▀ ")
+    hud.setCursorPos(3, logoY + 2) hud.write("█  ▀█")
+    
+    hud.setCursorPos(1, logoY + 4)
+    hud.write("-- R E D --")
+    hud.setCursorPos(1, logoY + 5)
+    hud.setTextColour(C_BRANCO)
+    hud.write("INDUSTRIES")
 end
 
 -- ==========================================
@@ -112,6 +127,7 @@ local function updateDynamicHUD()
     hud.setBackgroundColour(C_TRANS)
 
     local myX, myY, myZ = 0, 0, 0
+    local myHealth, myFood = 20, 20
     local dadosRadar = {}
     local inimigosProximos = 0
     local inimigoMaisProximo = nil
@@ -120,7 +136,6 @@ local function updateDynamicHUD()
     if detector then
         speedTicks = speedTicks + 1
         
-        -- Atualiza a própria posição
         local sucMy, myPos = pcall(detector.getPlayerPos, meuNick)
         if sucMy and type(myPos) == "table" and myPos.x then
             myX, myY, myZ = math.floor(myPos.x), math.floor(myPos.y), math.floor(myPos.z)
@@ -134,7 +149,14 @@ local function updateDynamicHUD()
             end
         end
 
-        -- Escaneia outros jogadores
+        if detector.getPlayer then
+            local okMeta, meta = pcall(detector.getPlayer, meuNick)
+            if okMeta and type(meta) == "table" then
+                if meta.health then myHealth = tonumber(meta.health) end
+                if meta.foodLevel then myFood = tonumber(meta.foodLevel) end
+            end
+        end
+
         local suc, pList = pcall(detector.getOnlinePlayers)
         if suc and type(pList) == "table" then
             for _, p in ipairs(pList) do
@@ -166,7 +188,6 @@ local function updateDynamicHUD()
     local midX = math.floor(w/2) + offsetMiraX
     local midY = math.floor(h/2) + offsetMiraY
 
-    -- Alvo travado na tela
     if inimigoMaisProximo then
         writeData(midX - 12, midY - 2, ">> ALVO: ", C_ALERTA, inimigoMaisProximo .. " ("..menorDistanciaDeMim.."m)", C_VERMELHO, 25)
     else
@@ -178,7 +199,6 @@ local function updateDynamicHUD()
     -- ==========================================
     if jarvisAtivo then
         if jarvisAtual == "" then
-            -- Jarvis fala com frequência média (chance de 1 em 80)
             if math.random(1, 80) == 1 then
                 jarvisAtual = jarvisDicas[math.random(1, #jarvisDicas)]
                 jarvisProgresso = 0
@@ -233,12 +253,30 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- LOG DE ALVOS (INFERIOR ESQUERDO)
+    -- STATUS DO ALIEN_LE_PEP (DIREITA)
     -- ==========================================
-    local blY = h - 6
-    hud.setCursorPos(3, blY)
+    local trX = w - 24
+    
+    local barHP = getProgressBar(myHealth, 20, 10)
+    local barFood = getProgressBar(myFood, 20, 10)
+    
+    writeData(trX, 3, "OP  :: ", C_AZUL_CLARO, string.sub(meuNick, 1, 14), C_BRANCO, 17)
+    writeData(trX, 4, "XYZ :: ", C_AZUL_CLARO, myX..","..myY..","..myZ, C_BRANCO, 17)
+    writeData(trX, 5, "VEL :: ", C_AZUL_CLARO, speed .. " b/s", C_BRANCO, 17)
+    writeData(trX, 7, "HP  :: ", C_AZUL_CLARO, barHP, myHealth <= 6 and C_VERMELHO or C_VERDE, 17)
+    writeData(trX, 8, "FD  :: ", C_AZUL_CLARO, barFood, myFood <= 6 and C_ALERTA or C_AMARELO, 17)
+
+    local jStatus = jarvisAtivo and "[ ONLINE ]" or "[ OFFLINE ]"
+    local jColor = jarvisAtivo and C_VERDE or C_CINZA
+    writeData(trX, 10, "A.I :: ", C_AZUL_CLARO, jStatus, jColor, 17)
+
+    -- ==========================================
+    -- LOG DE ALVOS (INFERIOR DIREITO)
+    -- ==========================================
+    local brY = h - 6
+    hud.setCursorPos(w - 24, brY)
     hud.setTextColour(C_AZUL_CLARO)
-    hud.write("ALVOS (DE VOCE):")
+    hud.write("AMEACAS PROXIMAS:")
 
     local row = 1
     local printados = 0
@@ -247,17 +285,12 @@ local function updateDynamicHUD()
             local elev = "-"
             if alvo.dyM > 4 then elev = "^" elseif alvo.dyM < -4 then elev = "v" end
             
-            writeData(3, blY + row, "[HOSTIL]", C_ALERTA, " " .. elev .. " " .. string.sub(alvo.nome, 1, 10) .. " " .. alvo.dM .. "m", C_BRANCO, 25)
+            writeData(w - 24, brY + row, "[!]", C_ALERTA, " " .. elev .. " " .. string.sub(alvo.nome, 1, 10) .. " " .. alvo.dM .. "m", C_VERMELHO, 25)
             row = row + 1
             printados = printados + 1
         end
     end
-    for r = row, 4 do writeData(3, blY + r, "", C_BRANCO, "", C_BRANCO, 25) end
-
-    -- Status do Jarvis (Inferior Direito)
-    local jStatus = jarvisAtivo and "[ ONLINE ]" or "[ OFFLINE ]"
-    local jColor = jarvisAtivo and C_VERDE or C_CINZA
-    writeData(w - 24, h - 2, "A.I :: ", C_AZUL_CLARO, jStatus, jColor, 17)
+    for r = row, 4 do writeData(w - 24, brY + r, "", C_BRANCO, "", C_BRANCO, 25) end
 end
 
 -- ==========================================
@@ -265,13 +298,13 @@ end
 -- ==========================================
 term.clear()
 term.setCursorPos(1, 1)
-term.setTextColor(colors.cyan)
+term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: LITE EDITION")
+print(" RED_INDUSTRIES :: ALIEN EDITION")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Focado exclusivamente no operador.")
-print(" > Jarvis ativo.")
+print(" > Focado no operador: Alien_Le_pep.")
+print(" > Logo personalizada inserida.")
 print(" > [J] Liga/Desliga Jarvis.")
 print(" > [Q] Desliga o HUD.")
 
@@ -306,4 +339,4 @@ hud.clear()
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)
-print("Visor LITE encerrado.")
+print("Visor Alien encerrado.")

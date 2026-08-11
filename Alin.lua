@@ -1,12 +1,11 @@
 -- ==========================================
 -- HUD GLASSES - RED_INDUSTRIES_OS (ALIEN ED.)
--- Sigeon pex + Logo Red Industries Refinada
+-- Sigeon pex + Logo Fix + Terminal Glitch
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
 local detector = peripheral.find("player_detector")
 local speaker = peripheral.find("speaker")
-local env = peripheral.find("environmentDetector") or peripheral.find("environment_detector")
 
 if not hud then
     term.clear()
@@ -42,19 +41,18 @@ local C_CINZA_ESCURO = colors.lightGray
 
 local lastX, lastY, lastZ = nil, nil, nil
 local speed, speedTicks = 0, 0
+local frame = 0
+local glitchTimer = 0 -- Controlador do evento de erro na tela
 
 -- Sistema SIGEON PEX
 local sigeonAtivo = true 
 local sigeonDicas = {
-    "SIGEON PEX: Babababindun.",
-    "SIGEON PEX: Silili boy.",
-    "SIGEON PEX: Cuidado tem um homem bebe macaco.",
-    "SIGEON PEX: Vá fetalizar.",
-    "SIGEON PEX: Sulfato de pernas azuis.",
-    "SIGEON PEX: Bebê Sonic azul.",
-    "SIGEON PEX: Franklin Epstein.",
-    "SIGEON PEX: Galalelo galala.",
-    "SIGEON PEX: Tung Tung angel."
+    "SIGEON PEX: Op. Alien, mantenha sua estamina alta.",
+    "SIGEON PEX: Radar local configurado para 50 metros.",
+    "SIGEON PEX: Equipamento RED INDUSTRIES operando 100%.",
+    "SIGEON PEX: O cenario atual favorece emboscadas. Atencao.",
+    "SIGEON PEX: Varredura de perimetro concluida.",
+    "SIGEON PEX: Sistemas operando em capacidade nominal."
 }
 local sigeonAtual = ""
 local sigeonProgresso = 0
@@ -108,22 +106,26 @@ local function drawStaticHUD()
     hud.setCursorPos(w - 1, 3) hud.write("||")
 
     -- ==========================================
-    -- LOGO 100% BLINDADA (ASCII AFiada)
+    -- NOVA LOGO (Afiada, sem blocos bugados)
     -- ==========================================
-    local logoY = 28
+    local logoY = 27
     hud.setTextColour(C_VERMELHO)
-    hud.setCursorPos(2, logoY)     hud.write(" _________")
-    hud.setCursorPos(2, logoY + 1) hud.write(" \\        \\")
-    hud.setCursorPos(2, logoY + 2) hud.write("  >   .-' /")
-    hud.setCursorPos(2, logoY + 3) hud.write(" /  /___.'")
-    hud.setCursorPos(2, logoY + 4) hud.write("/  / \\  \\")
-    hud.setCursorPos(2, logoY + 5) hud.write("\\__/  \\__\\")
+    hud.setCursorPos(2, logoY)     hud.write(" //=======\\")
+    hud.setCursorPos(2, logoY + 1) hud.write(" //  ____//")
+    hud.setCursorPos(2, logoY + 2) hud.write(" // //___/ ")
+    hud.setCursorPos(2, logoY + 3) hud.write(" //  \\ \\   ")
+    hud.setCursorPos(2, logoY + 4) hud.write(" //   \\ \\  ")
     
-    hud.setCursorPos(3, logoY + 7)
-    hud.write("- R E D -")
-    hud.setCursorPos(2, logoY + 8)
+    hud.setCursorPos(3, logoY + 6)
+    hud.write("-- R E D --")
+    hud.setCursorPos(2, logoY + 7)
     hud.setTextColour(C_BRANCO)
     hud.write("INDUSTRIES")
+    
+    -- Módulo Adicionado
+    hud.setCursorPos(2, logoY + 9)
+    hud.setTextColour(C_CINZA_ESCURO)
+    hud.write("Sigeon Modulo 1.6.235")
 end
 
 -- ==========================================
@@ -297,6 +299,39 @@ local function updateDynamicHUD()
         end
     end
     for r = row, 4 do writeData(w - 24, brY + r, "", C_BRANCO, "", C_BRANCO, 25) end
+
+    -- ==========================================
+    -- EVENTO DE GLITCH (ERRO TERMINAL)
+    -- ==========================================
+    if glitchTimer > 0 then
+        -- Cores piscando
+        local gColor = (glitchTimer % 2 == 0) and C_VERMELHO or C_BRANCO
+        
+        -- Desenha caixa gigante no centro
+        hud.setTextColour(gColor)
+        hud.setCursorPos(midX - 16, midY - 1) hud.write("================================")
+        hud.setCursorPos(midX - 16, midY)     hud.write("|||   !!! ERRO TERMINAL !!!  |||")
+        hud.setCursorPos(midX - 16, midY + 1) hud.write("================================")
+        
+        -- Gera lixo visual pela tela toda (Códigos Hex aleatórios)
+        for i = 1, 15 do
+            hud.setCursorPos(math.random(1, w - 10), math.random(1, h))
+            hud.setTextColour(math.random(1, 2) == 1 and C_VERMELHO or C_CINZA_ESCURO)
+            hud.write("0x" .. string.format("%X", math.random(1000, 9999)))
+        end
+        
+        -- Som de falha
+        if glitchTimer % 3 == 0 and speaker then
+            speaker.playSound("block.note_block.didgeridoo", 2.0, math.random(5, 12) * 0.1)
+        end
+        
+        glitchTimer = glitchTimer - 1
+        
+        -- Quando o erro acabar, força a limpeza do lixo da tela redesenhando o estático
+        if glitchTimer == 0 then
+            drawStaticHUD()
+        end
+    end
 end
 
 -- ==========================================
@@ -306,11 +341,11 @@ term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.cyan)
 print("======================================")
-print(" RED_INDUSTRIES :: ALIEN EDITION V2")
+print(" RED_INDUSTRIES :: ALIEN EDITION V3")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Focado exclusivamente no operador.")
-print(" > Assistente Sigeon pex online.")
+print(" > Logo ASCII ajustada.")
+print(" > Modulo Sigeon 1.6.235 Ativo.")
 print(" > [S] Liga/Desliga Sigeon pex.")
 print(" > [Q] Desliga o HUD.")
 
@@ -323,6 +358,17 @@ while running do
     local event, p1 = os.pullEvent()
 
     if event == "timer" and p1 == timer then
+        frame = frame + 1
+        
+        -- SORTEIO DO ERRO TERMINAL (A cada 10s = 100 frames)
+        if frame % 100 == 0 then
+            -- 15% de chance de dar o glitch
+            if math.random(1, 100) <= 15 then
+                glitchTimer = 10 -- Fica na tela por 10 frames (1 segundo)
+                if speaker then speaker.playSound("block.beacon.deactivate", 2.0, 0.5) end
+            end
+        end
+
         updateDynamicHUD() 
         timer = os.startTimer(0.1)
     elseif event == "key" then

@@ -67,13 +67,14 @@ local dadosMinerios = {}
 -- Sistema JARVIS
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Radares online. Vantagem tatica estabelecida.",
-    "JARVIS: Aperte [T] para alternar o foco do radar local.",
-    "JARVIS: Trabalhem em conjunto. O fogo cruzado e letal.",
-    "JARVIS: Setas no radar de minerios indicam a profundidade.",
-    "JARVIS: O cenario atual favorece emboscadas. Atencao.",
-    "JARVIS: O modulo GeoScanner procura por minerais de alto valor.",
-    "JARVIS: Rede neural estabilizada entre os operadores."
+    "JARVIS: Saggin",
+    "JARVIS: Homem misterioso.",
+    "JARVIS: Tung tung.",
+    "JARVIS: Meu pe.",
+    "JARVIS: Kalip.",
+    "JARVIS: Redarelhada de aco.",
+    "JARVIS: PimPimPong."
+    "JARVIS: Lembre se de alimentar o seu homem misterioso"
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0

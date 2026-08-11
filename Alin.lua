@@ -1,6 +1,6 @@
 -- ==========================================
 -- HUD GLASSES - RED_INDUSTRIES_OS (ALIEN ED.)
--- Sigeon pex + Logo ASCII Segura
+-- Sigeon pex + Logo Red Industries Refinada
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -46,13 +46,12 @@ local speed, speedTicks = 0, 0
 -- Sistema SIGEON PEX
 local sigeonAtivo = true 
 local sigeonDicas = {
-    "SIGEON PEX: Galalelo galala.",
-    "SIGEON PEX: Tung Tung angel.",
-    "SIGEON PEX: Babababindun .",
-    "SIGEON PEX: Silili boy.",
-    "SIGEON PEX: Cuidado tem um homem bebe macaco.",
-    "SIGEON PEX: Vá fetalizar.",
-    "SIGEON PEX: Sulfato de pernas azuis."
+    "SIGEON PEX: Op. Alien, mantenha sua estamina alta.",
+    "SIGEON PEX: Radar local configurado para 50 metros.",
+    "SIGEON PEX: Equipamento RED INDUSTRIES operando 100%.",
+    "SIGEON PEX: O cenario atual favorece emboscadas. Atencao.",
+    "SIGEON PEX: Varredura de perimetro concluida.",
+    "SIGEON PEX: Sistemas operando em capacidade nominal."
 }
 local sigeonAtual = ""
 local sigeonProgresso = 0
@@ -106,20 +105,20 @@ local function drawStaticHUD()
     hud.setCursorPos(w - 1, 3) hud.write("||")
 
     -- ==========================================
-    -- ASCII ART SEGURA: LOGO RED INDUSTRIES
-    -- Usando caracteres normais para evitar glitches
+    -- LOGO 100% BLINDADA (ASCII AFiada)
     -- ==========================================
-    local logoY = 30
+    local logoY = 28
     hud.setTextColour(C_VERMELHO)
-    hud.setCursorPos(3, logoY)     hud.write("######\\")
-    hud.setCursorPos(3, logoY + 1) hud.write("     ##")
-    hud.setCursorPos(3, logoY + 2) hud.write("######/")
-    hud.setCursorPos(3, logoY + 3) hud.write("##  \\")
-    hud.setCursorPos(3, logoY + 4) hud.write("##   \\")
+    hud.setCursorPos(2, logoY)     hud.write(" _________")
+    hud.setCursorPos(2, logoY + 1) hud.write(" \\        \\")
+    hud.setCursorPos(2, logoY + 2) hud.write("  >   .-' /")
+    hud.setCursorPos(2, logoY + 3) hud.write(" /  /___.'")
+    hud.setCursorPos(2, logoY + 4) hud.write("/  / \\  \\")
+    hud.setCursorPos(2, logoY + 5) hud.write("\\__/  \\__\\")
     
-    hud.setCursorPos(1, logoY + 6)
-    hud.write("-- R E D --")
-    hud.setCursorPos(1, logoY + 7)
+    hud.setCursorPos(3, logoY + 7)
+    hud.write("- R E D -")
+    hud.setCursorPos(2, logoY + 8)
     hud.setTextColour(C_BRANCO)
     hud.write("INDUSTRIES")
 end
@@ -304,7 +303,7 @@ term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.cyan)
 print("======================================")
-print(" RED_INDUSTRIES :: ALIEN EDITION")
+print(" RED_INDUSTRIES :: ALIEN EDITION V2")
 print("======================================")
 term.setTextColor(colors.white)
 print(" > Focado exclusivamente no operador.")

@@ -1,6 +1,6 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (DUO V6)
--- Elevacao de Minerios + Foco de Radar Dinamico
+-- HUD GLASSES - RED_INDUSTRIES_OS (DUO V7)
+-- 20 FPS Refresh + Auto-Track (10s)
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -67,14 +67,13 @@ local dadosMinerios = {}
 -- Sistema JARVIS
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Saggin",
-    "JARVIS: Homem misterioso.",
-    "JARVIS: Tung tung.",
-    "JARVIS: Meu pe.",
-    "JARVIS: Kalip.",
-    "JARVIS: Redarelhada de aco.",
-    "JARVIS: PimPimPong."
-    "JARVIS: Lembre se de alimentar o seu homem misterioso"
+    "JARVIS: Radares em Alta Frequencia (20 FPS).",
+    "JARVIS: Auto-Track ativado. Foco alterna a cada 10 segundos.",
+    "JARVIS: Trabalhem em conjunto. O fogo cruzado e letal.",
+    "JARVIS: Setas no radar de minerios indicam a profundidade.",
+    "JARVIS: O cenario atual favorece emboscadas. Atencao.",
+    "JARVIS: O modulo GeoScanner procura por minerais de alto valor.",
+    "JARVIS: Rede neural estabilizada entre os operadores."
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0
@@ -146,7 +145,6 @@ local function drawStaticHUD()
     hud.setCursorPos(1, 1) hud.write("+==[ GLOBAL: BASE ]===============-")
     hud.setCursorPos(1, 2) hud.write("||")
     
-    -- O título do Radar 2 agora é redesenhado dinamicamente
     hud.setCursorPos(1, 16) hud.write("||")
 
     hud.setCursorPos(1, 30) hud.write("+==[ GEO SCANNER ]================-")
@@ -182,14 +180,12 @@ local function updateDynamicHUD()
     local currentBiome, currentLight = "OFFLINE", 15
     local spawnRisk = false
 
-    -- Sensores do Ambiente
     if env then
         pcall(function() currentBiome = env.getBiome() end)
         pcall(function() currentLight = env.getLightLevel() end)
         if currentLight < 7 then spawnRisk = true end
     end
     
-    -- Leitura dos Jogadores
     if detector then
         for _, op in ipairs(operadores) do tracker[op].online = false end
         speedTicks = speedTicks + 1
@@ -207,7 +203,8 @@ local function updateDynamicHUD()
                         if tracker[p].lastX == nil then
                             tracker[p].lastX, tracker[p].lastY, tracker[p].lastZ = tracker[p].x, tracker[p].y, tracker[p].z
                         end
-                        if speedTicks >= 10 then
+                        -- Velocidade atualizada a cada 20 frames (1 segundo agora)
+                        if speedTicks >= 20 then
                             local dx = tracker[p].x - tracker[p].lastX
                             local dy = tracker[p].y - tracker[p].lastY
                             local dz = tracker[p].z - tracker[p].lastZ
@@ -223,11 +220,9 @@ local function updateDynamicHUD()
                             end
                         end
                     else
-                        -- Cálculo 1: Em relação à Base
                         local dxB, dzB = pos.x - baseX, pos.z - baseZ
                         local distBase = math.floor(math.sqrt(dxB*dxB + (pos.y - baseY)^2 + dzB*dzB))
                         
-                        -- Cálculo 2: Em relação ao jogador FOCADO (trackedPlayer)
                         local tX, tY, tZ = baseX, baseY, baseZ
                         if tracker[trackedPlayer].online then
                             tX, tY, tZ = tracker[trackedPlayer].x, tracker[trackedPlayer].y, tracker[trackedPlayer].z
@@ -255,12 +250,12 @@ local function updateDynamicHUD()
                 end
             end
         end
-        if speedTicks >= 10 then speedTicks = 0 end
+        if speedTicks >= 20 then speedTicks = 0 end
     end
 
     table.sort(dadosRadar, function(a, b) return a.dM < b.dM end)
 
-    -- Leitura do Geo Scanner
+    -- Leitura do Geo Scanner (20 frames = 1 seg)
     if geo and frame % 20 == 0 then
         local sucGeo, scanResult = pcall(geo.scan, 12)
         if sucGeo and type(scanResult) == "table" then
@@ -275,7 +270,6 @@ local function updateDynamicHUD()
                     elseif string.find(name, "iron") then color = C_FERRO
                     elseif string.find(name, "ancient_debris") then color = C_VERMELHO end
                     
-                    -- Define o Ícone com base na elevação (block.y é relativo ao scanner)
                     local icon = "-"
                     if block.y > 1 then icon = "^" 
                     elseif block.y < -1 then icon = "v" 
@@ -290,14 +284,13 @@ local function updateDynamicHUD()
     local midX = math.floor(w/2) + offsetMiraX
     local midY = math.floor(h/2) + offsetMiraY
 
-    -- Atualiza o título do Radar Local para mostrar quem está sendo focado
     local shortName = string.upper(string.sub(trackedPlayer, 1, 6))
     hud.setCursorPos(1, 15)
     hud.setTextColour(C_AZUL_CLARO)
     hud.write("+==[ FOCO: " .. string.format("%-6s", shortName) .. " ]==========-")
 
     -- ==========================================
-    -- SISTEMA DEFCON (TOPO CENTRAL)
+    -- SISTEMA DEFCON E ALVO CENTRAL
     -- ==========================================
     local defconLvl = 5
     local defconCol = C_VERDE
@@ -322,20 +315,21 @@ local function updateDynamicHUD()
     -- ==========================================
     if jarvisAtivo then
         if jarvisAtual == "" then
-            if spawnRisk and math.random(1, 40) == 1 then
+            if spawnRisk and math.random(1, 80) == 1 then
                 jarvisAtual = "ALERTA: Luz baixa no perimetro. Risco de invasao."
                 jarvisProgresso = 0
-                jarvisTempoTela = 60
-            elseif math.random(1, 80) == 1 then
+                jarvisTempoTela = 120
+            elseif math.random(1, 160) == 1 then
                 jarvisAtual = jarvisDicas[math.random(1, #jarvisDicas)]
                 jarvisProgresso = 0
-                jarvisTempoTela = 60
+                jarvisTempoTela = 120
             end
         end
 
         if jarvisAtual ~= "" then
+            -- Progresso de texto (mais lento pq roda a 20fps)
             if jarvisProgresso < #jarvisAtual then
-                jarvisProgresso = jarvisProgresso + 2 
+                jarvisProgresso = jarvisProgresso + 1 
                 if jarvisProgresso > #jarvisAtual then jarvisProgresso = #jarvisAtual end
             else
                 jarvisTempoTela = jarvisTempoTela - 1
@@ -351,7 +345,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- RADAR 1: GLOBAL (FOCADO NA BASE)
+    -- RADAR 1: GLOBAL
     -- ==========================================
     for rY = radar1CY - 6, radar1CY + 6 do hud.setCursorPos(radar1CX - 12, rY) hud.write("                        ") end
     hud.setTextColour(C_CINZA_ESCURO)
@@ -374,7 +368,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- RADAR 2: LOCAL (FOCADO NO JOGADOR SELECIONADO - 50m)
+    -- RADAR 2: LOCAL (FOCO)
     -- ==========================================
     for rY = radar2CY - 6, radar2CY + 6 do hud.setCursorPos(radar2CX - 12, rY) hud.write("                        ") end
     hud.setTextColour(C_CINZA_ESCURO)
@@ -401,7 +395,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- RADAR 3: GEO SCANNER (MINÉRIOS - 12m)
+    -- RADAR 3: GEO SCANNER
     -- ==========================================
     for rY = radar3CY - 6, radar3CY + 6 do hud.setCursorPos(radar3CX - 12, rY) hud.write("                        ") end
     hud.setTextColour(C_CINZA_ESCURO)
@@ -425,13 +419,13 @@ local function updateDynamicHUD()
             if plotX > radar3CX - 9 and plotX < radar3CX + 9 and plotY > radar3CY - 6 and plotY < radar3CY + 6 then
                 hud.setCursorPos(plotX, plotY)
                 hud.setTextColour(minerio.col)
-                hud.write(minerio.ic) -- ESCREVE O ÍCONE DA ALTURA (^, v, -)
+                hud.write(minerio.ic)
             end
         end
     end
 
     -- ==========================================
-    -- SINAIS VITAIS E LOG
+    -- SINAIS VITAIS
     -- ==========================================
     local blY = h - 7
     local op1 = tracker["redgames132"]
@@ -452,7 +446,6 @@ local function updateDynamicHUD()
         writeData(3, blY + 1, "CAD :: ", C_CYAN, "[ OFFLINE ]", C_CINZA, 20)
     end
 
-    -- Atualiza o cabeçalho das Ameaças dinamicamente
     hud.setCursorPos(3, blY + 2)
     hud.setTextColour(C_AZUL_CLARO)
     hud.write("ALVOS (DE: " .. shortName .. "):    ")
@@ -510,33 +503,43 @@ local function updateDynamicHUD()
 end
 
 -- ==========================================
--- LOOP PRINCIPAL E TECLAS
+-- LOOP PRINCIPAL (20 FPS)
 -- ==========================================
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.red)
 print("======================================")
-print(" RED_INDUSTRIES :: DUO-CORE V6")
+print(" RED_INDUSTRIES :: DUO-CORE V7")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Elevacao de Minerios (^, v, -).")
-print(" > Foco Dinamico de Radar Ativado.")
-print(" > [T] Alterna o foco do Radar (Red/Cad).")
+print(" > Refresh rate dobrado (20 FPS).")
+print(" > Auto-Track (10s) Ativado.")
+print(" > [T] Alterna o foco do Radar manualmente.")
 print(" > [J] Liga/Desliga Jarvis.")
 print(" > [Q] Desliga o HUD.")
 
 drawStaticHUD() 
 
 local running = true
-local timer = os.startTimer(0.1)
+-- Refresh de 0.05 segundos (20 quadros por segundo)
+local timer = os.startTimer(0.05)
 
 while running do
     local event, p1 = os.pullEvent()
 
     if event == "timer" and p1 == timer then
         frame = frame + 1
+        
+        -- AUTO-TRACK: A CADA 10 SEGUNDOS (200 frames)
+        if frame % 200 == 0 then
+            currentTrackIndex = currentTrackIndex + 1
+            if currentTrackIndex > #operadores then currentTrackIndex = 1 end
+            trackedPlayer = operadores[currentTrackIndex]
+            if speaker then speaker.playSound("ui.button.click", 1.0, 1.5) end
+        end
+
         updateDynamicHUD() 
-        timer = os.startTimer(0.1)
+        timer = os.startTimer(0.05)
     elseif event == "key" then
         if p1 == keys.q then
             running = false
@@ -546,10 +549,11 @@ while running do
                 jarvisAtual = "" 
             end
         elseif p1 == keys.t then
-            -- MUDANÇA DE FOCO
+            -- MUDANÇA MANUAL (E reseta o relógio do Auto-Track pra não mudar logo em seguida)
             currentTrackIndex = currentTrackIndex + 1
             if currentTrackIndex > #operadores then currentTrackIndex = 1 end
             trackedPlayer = operadores[currentTrackIndex]
+            frame = 0 
             if speaker then speaker.playSound("ui.button.click", 1.0, 2.0) end
         end
     end

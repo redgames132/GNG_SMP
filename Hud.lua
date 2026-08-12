@@ -1,6 +1,7 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (DUO V8)
--- High-Contrast Neon + Logo Red Industries
+-- HUD GLASSES - RED_INDUSTRIES_OS (V9 OVERLORD)
+-- Sistema Tático Co-Op + Triple Radar + Jarvis AI + Logo
+-- Desenvolvido para: redgames132 & cadipadi
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -11,9 +12,9 @@ local geo = peripheral.find("geoScanner") or peripheral.find("geo_scanner")
 
 if not hud then
     term.clear()
-    term.setCursorPos(1,1)
+    term.setCursorPos(1, 1)
     term.setTextColor(colors.red)
-    print("ERRO CRITICO: HUD Modem nao encontrado!")
+    print("ERRO CRITICO: HUD Modem (hud_glasses) nao encontrado!")
     return
 end
 
@@ -21,14 +22,14 @@ hud.setSize(100, 50)
 local w, h = hud.getSize()
 
 -- ==========================================
--- CONFIGURAÇÕES DA EQUIPE E MIRA
+-- CONFIGURAÇÕES DE EQUIPE & MIRA
 -- ==========================================
 local meuNick = "redgames132"
 local baseX, baseY, baseZ = -573, 57, -1446
 local raioGlobal = 250
 local raioLocal = 50
 
--- Empurra o centro do HUD 3 pixels para a esquerda
+-- Ajuste de centralização (Deslocado para a esquerda a pedido)
 local offsetMiraX = -3  
 local offsetMiraY = 1  
 
@@ -40,22 +41,26 @@ local tracker = {
     ["redgames132"] = {lastX = nil, lastY = nil, lastZ = nil, speed = 0, online = false, hp = 20, food = 20, x = 0, y = 0, z = 0},
     ["cadipadi"]    = {lastX = nil, lastY = nil, lastZ = nil, speed = 0, online = false, hp = 20, food = 20, x = 0, y = 0, z = 0}
 }
-local aliados = { ["KAIOX_NEGROX"] = true, ["goonerstickle69"] = true }
 
--- Paleta Neon de Alto Contraste
-local C_TRANS = 0
-local C_MOLDURA = colors.lime      -- Verde Neon
-local C_DESTAQUE = colors.orange   -- Laranja Tático
-local C_VERMELHO = colors.red
-local C_BRANCO = colors.white
-local C_AMARELO = colors.yellow
-local C_CYAN = colors.cyan
-local C_CINZA = colors.gray
+local aliados = { 
+    ["KAIOX_NEGROX"] = true, 
+    ["goonerstickle69"] = true 
+}
+
+-- Paleta Neon de Alto Contraste (Verde Tático + Laranja Emergência)
+local C_TRANS        = 0
+local C_MOLDURA      = colors.lime      -- Verde Néon Tático
+local C_DESTAQUE     = colors.orange    -- Laranja Alerta
+local C_VERMELHO     = colors.red
+local C_BRANCO       = colors.white
+local C_AMARELO      = colors.yellow
+local C_CYAN         = colors.cyan
+local C_CINZA        = colors.gray
 local C_CINZA_ESCURO = colors.lightGray
-local C_DIAMANTE = colors.lightBlue
-local C_ESMERALDA = colors.green
-local C_OURO = colors.yellow
-local C_FERRO = colors.white
+local C_DIAMANTE     = colors.lightBlue
+local C_ESMERALDA    = colors.lime
+local C_OURO         = colors.yellow
+local C_FERRO        = colors.white
 
 local frame = 0
 local speedTicks = 0
@@ -63,25 +68,27 @@ local startTime = os.clock()
 
 local dadosMinerios = {}
 
--- Sistema JARVIS
+-- ==========================================
+-- SISTEMA JARVIS (IA TÁTICA)
+-- ==========================================
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Interface alterada para Verde Tatico. Visibilidade 100%.",
-    "JARVIS: Auto-Track ativado. Foco alterna a cada 10 segundos.",
-    "JARVIS: Trabalhem em conjunto. O fogo cruzado e letal.",
-    "JARVIS: Setas no radar de minerios indicam a profundidade.",
-    "JARVIS: O cenario atual favorece emboscadas. Atencao.",
-    "JARVIS: O modulo GeoScanner procura por minerais de alto valor.",
-    "JARVIS: Rede neural estabilizada entre os operadores."
+    "JARVIS: Interface V9 OVERLORD sincronizada com sucesso.",
+    "JARVIS: Auto-Track ativado. Alternando radar a cada 10s.",
+    "JARVIS: Fogo cruzado tatico entre Red e Cad maximiza dano.",
+    "JARVIS: GeoScanner identificando minerios com indicacao de elevacao.",
+    "JARVIS: Mantenham o nivel de comida alto para regeneracao automatica.",
+    "JARVIS: Perimetro da base seguro sob a diretriz DEFCON.",
+    "JARVIS: Rede neural criptografada estabelecida com o Squad."
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0
 local jarvisTempoTela = 0
 
 -- Geometria dos 3 Radares
-local radar1CX, radar1CY = 14, 8   
-local radar2CX, radar2CY = 14, 22  
-local radar3CX, radar3CY = 14, 37  
+local radar1CX, radar1CY = 14, 8   -- Radar 1: Global (Base)
+local radar2CX, radar2CY = 14, 22  -- Radar 2: Local (Foco Dinâmico)
+local radar3CX, radar3CY = 14, 37  -- Radar 3: Geo Scanner (Minérios)
 
 local radius1, radius2, radius3 = 5, 5, 5
 local circle1Points, circle2Points, circle3Points = {}, {}, {}
@@ -141,8 +148,8 @@ local function drawStaticHUD()
     hud.clear()
     hud.setTextColour(C_MOLDURA)
 
-    -- Paineis Esquerdos
-    hud.setCursorPos(1, 1) hud.write("+==[ GLOBAL: BASE ]===============-")
+    -- Painéis do Lado Esquerdo (Radares)
+    hud.setCursorPos(1, 1) hud.write("+==[ GLOBAL: BASE ]==============-")
     hud.setCursorPos(1, 2) hud.write("||")
     hud.setCursorPos(1, 16) hud.write("||")
     hud.setCursorPos(1, 30) hud.write("+==[ GEO SCANNER ]================-")
@@ -150,13 +157,13 @@ local function drawStaticHUD()
     hud.setCursorPos(1, h - 1) hud.write("||")
     hud.setCursorPos(1, h)     hud.write("+==[ EQUIPE E VITAIS ]============-")
 
-    -- Paineis Direitos
+    -- Painéis do Lado Direito (Telemetria)
     hud.setCursorPos(w - 38, 1) hud.write("-===================[ TELEMETRIA ]==+")
     hud.setCursorPos(w - 1, 2) hud.write("||")
     hud.setCursorPos(w - 34, h - 17) hud.write("-======================[ CORE OS ]==+")
     hud.setCursorPos(w - 1, h - 16) hud.write("||")
 
-    -- Miras laterais
+    -- Cantoneiras Decorativas de Visor
     hud.setTextColour(C_CINZA)
     hud.setCursorPos(2, math.floor(h/2) - 1) hud.write("[")
     hud.setCursorPos(2, math.floor(h/2) + 1) hud.write("[")
@@ -182,7 +189,7 @@ local function drawStaticHUD()
 end
 
 -- ==========================================
--- 2. DESENHO DINÂMICO
+-- 2. DESENHO DINÂMICO (20 FPS REFRESH)
 -- ==========================================
 local function updateDynamicHUD()
     hud.setBackgroundColour(C_TRANS)
@@ -195,12 +202,14 @@ local function updateDynamicHUD()
     local currentBiome, currentLight = "OFFLINE", 15
     local spawnRisk = false
 
+    -- Leitura dos Dados do Ambiente
     if env then
         pcall(function() currentBiome = env.getBiome() end)
         pcall(function() currentLight = env.getLightLevel() end)
         if currentLight < 7 then spawnRisk = true end
     end
     
+    -- Leitura dos Jogadores na Rede
     if detector then
         for _, op in ipairs(operadores) do tracker[op].online = false end
         speedTicks = speedTicks + 1
@@ -234,9 +243,11 @@ local function updateDynamicHUD()
                             end
                         end
                     else
+                        -- Distância em relação à Base
                         local dxB, dzB = pos.x - baseX, pos.z - baseZ
                         local distBase = math.floor(math.sqrt(dxB*dxB + (pos.y - baseY)^2 + dzB*dzB))
                         
+                        -- Distância em relação ao Jogador Focado
                         local tX, tY, tZ = baseX, baseY, baseZ
                         if tracker[trackedPlayer].online then
                             tX, tY, tZ = tracker[trackedPlayer].x, tracker[trackedPlayer].y, tracker[trackedPlayer].z
@@ -269,6 +280,7 @@ local function updateDynamicHUD()
 
     table.sort(dadosRadar, function(a, b) return a.dM < b.dM end)
 
+    -- Leitura do GeoScanner (A cada 1 segundo / 20 frames)
     if geo and frame % 20 == 0 then
         local sucGeo, scanResult = pcall(geo.scan, 12)
         if sucGeo and type(scanResult) == "table" then
@@ -302,7 +314,7 @@ local function updateDynamicHUD()
     hud.write("+==[ FOCO: " .. string.format("%-6s", shortName) .. " ]==========-")
 
     -- ==========================================
-    -- SISTEMA DEFCON (TOPO CENTRAL)
+    -- BARRA DEFCON (ALERTA NO TOPO)
     -- ==========================================
     local defconLvl = 5
     local defconCol = C_VERDE
@@ -316,6 +328,7 @@ local function updateDynamicHUD()
     end
     writeData(midX - 10, 2, "DEFCON " .. defconLvl .. " :: ", C_BRANCO, defconTxt, defconCol, 15)
 
+    -- Trava de Alvo Flutuante no Centro
     if inimigoMaisProximo then
         writeData(midX - 12, midY - 2, ">> ALVO: ", C_DESTAQUE, inimigoMaisProximo .. " ("..menorDistanciaDeMim.."m)", C_VERMELHO, 25)
     else
@@ -323,12 +336,12 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- SISTEMA JARVIS
+    -- ASSISTENTE VIRTUAL (JARVIS AI)
     -- ==========================================
     if jarvisAtivo then
         if jarvisAtual == "" then
             if spawnRisk and math.random(1, 80) == 1 then
-                jarvisAtual = "ALERTA: Luz baixa no perimetro. Risco de invasao."
+                jarvisAtual = "ALERTA: Nivel de luz baixo no perimetro. Risco de hostis."
                 jarvisProgresso = 0
                 jarvisTempoTela = 120
             elseif math.random(1, 160) == 1 then
@@ -356,7 +369,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- RADAR 1: GLOBAL
+    -- RADAR 1: GLOBAL (BASE 250m)
     -- ==========================================
     for rY = radar1CY - 6, radar1CY + 6 do hud.setCursorPos(radar1CX - 12, rY) hud.write("                        ") end
     hud.setTextColour(C_CINZA_ESCURO)
@@ -379,7 +392,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- RADAR 2: LOCAL (FOCO)
+    -- RADAR 2: LOCAL (FOCO OPERADOR 50m)
     -- ==========================================
     for rY = radar2CY - 6, radar2CY + 6 do hud.setCursorPos(radar2CX - 12, rY) hud.write("                        ") end
     hud.setTextColour(C_CINZA_ESCURO)
@@ -406,7 +419,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- RADAR 3: GEO SCANNER
+    -- RADAR 3: GEO SCANNER (MINÉRIOS 12m)
     -- ==========================================
     for rY = radar3CY - 6, radar3CY + 6 do hud.setCursorPos(radar3CX - 12, rY) hud.write("                        ") end
     hud.setTextColour(C_CINZA_ESCURO)
@@ -436,7 +449,7 @@ local function updateDynamicHUD()
     end
 
     -- ==========================================
-    -- SINAIS VITAIS
+    -- SINAIS VITAIS DA EQUIPE
     -- ==========================================
     local blY = h - 7
     local op1 = tracker["redgames132"]
@@ -517,19 +530,19 @@ local function updateDynamicHUD()
 end
 
 -- ==========================================
--- LOOP PRINCIPAL
+-- LOOP PRINCIPAL (20 FPS)
 -- ==========================================
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)
 print("======================================")
-print(" RED_INDUSTRIES :: DUO-CORE V8")
+print(" RED_INDUSTRIES :: DUO-CORE V9 OVERLORD")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > UI alterada para Verde/Laranja Neon.")
-print(" > Logo inserida no canto inferior direito.")
-print(" > Mira central deslocada para a esquerda.")
-print(" > [T] Alterna foco. [J] Alterna Jarvis.")
+print(" > Paleta Neon Tatica (Verde/Laranja).")
+print(" > Logo Red Industries no canto inferior direito.")
+print(" > Deslocamento de mira para a esquerda ativo.")
+print(" > [T] Alterna Foco | [J] Alterna Jarvis | [Q] Sair")
 
 drawStaticHUD() 
 
@@ -542,6 +555,7 @@ while running do
     if event == "timer" and p1 == timer then
         frame = frame + 1
         
+        -- Auto-Track a cada 10s (200 frames)
         if frame % 200 == 0 then
             currentTrackIndex = currentTrackIndex + 1
             if currentTrackIndex > #operadores then currentTrackIndex = 1 end
@@ -574,4 +588,4 @@ hud.clear()
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)
-print("Visor DUO-CORE encerrado.")
+print("Visor DUO-CORE V9 encerrado.")

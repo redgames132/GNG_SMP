@@ -1,7 +1,7 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (V9 OVERLORD)
+-- HUD GLASSES - RED_INDUSTRIES_OS (V9.1 OVERLORD)
 -- Sistema Tático Co-Op + Triple Radar + Jarvis AI + Logo
--- Desenvolvido para: redgames132 & cadipadi
+-- Bug Fix: Linha 130 (Color Palette Sync)
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -61,6 +61,7 @@ local C_DIAMANTE     = colors.lightBlue
 local C_ESMERALDA    = colors.lime
 local C_OURO         = colors.yellow
 local C_FERRO        = colors.white
+local C_VERDE        = colors.lime      -- Backup de segurança
 
 local frame = 0
 local speedTicks = 0
@@ -73,15 +74,13 @@ local dadosMinerios = {}
 -- ==========================================
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "GUL.1: Saggin",
-    "GUL.1: Homem misterioso.",
-    "GUL.1: Tung tung.",
-    "GUL.1: Meu pe.",
-    "GUL.1: Kalip.",
-    "GUL.1: Redarelhada de aco.",
-    "GUL.1: PimPimPong.",
-    "GUL.1: o cenário atual atua armadilhas gulosas.",
-    "GUL.1: Lembre se de alimentar o seu homem misterioso."
+    "JARVIS: Interface V9 OVERLORD sincronizada com sucesso.",
+    "JARVIS: Auto-Track ativado. Alternando radar a cada 10s.",
+    "JARVIS: Fogo cruzado tatico entre Red e Cad maximiza dano.",
+    "JARVIS: GeoScanner identificando minerios com indicacao de elevacao.",
+    "JARVIS: Mantenham o nivel de comida alto para regeneracao automatica.",
+    "JARVIS: Perimetro da base seguro sob a diretriz DEFCON.",
+    "JARVIS: Rede neural criptografada estabelecida com o Squad."
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0
@@ -316,10 +315,10 @@ local function updateDynamicHUD()
     hud.write("+==[ FOCO: " .. string.format("%-6s", shortName) .. " ]==========-")
 
     -- ==========================================
-    -- BARRA DEFCON (ALERTA NO TOPO)
+    -- BARRA DEFCON (ALERTA NO TOPO) - CORRIGIDA
     -- ==========================================
     local defconLvl = 5
-    local defconCol = C_VERDE
+    local defconCol = C_MOLDURA -- Ajustado para usar C_MOLDURA em vez de C_VERDE (Linha 130 fix)
     local defconTxt = "SEGURO"
     
     if inimigosProximos > 0 then
@@ -538,7 +537,7 @@ term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)
 print("======================================")
-print(" RED_INDUSTRIES :: DUO-CORE V9 OVERLORD")
+print(" RED_INDUSTRIES :: DUO-CORE V9.1")
 print("======================================")
 term.setTextColor(colors.white)
 print(" > Paleta Neon Tatica (Verde/Laranja).")
@@ -590,4 +589,4 @@ hud.clear()
 term.clear()
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lime)
-print("Visor DUO-CORE V9 encerrado.")
+print("Visor DUO-CORE V9.1 encerrado.")

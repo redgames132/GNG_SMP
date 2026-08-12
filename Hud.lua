@@ -73,13 +73,15 @@ local dadosMinerios = {}
 -- ==========================================
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Interface V9 OVERLORD sincronizada com sucesso.",
-    "JARVIS: Auto-Track ativado. Alternando radar a cada 10s.",
-    "JARVIS: Fogo cruzado tatico entre Red e Cad maximiza dano.",
-    "JARVIS: GeoScanner identificando minerios com indicacao de elevacao.",
-    "JARVIS: Mantenham o nivel de comida alto para regeneracao automatica.",
-    "JARVIS: Perimetro da base seguro sob a diretriz DEFCON.",
-    "JARVIS: Rede neural criptografada estabelecida com o Squad."
+    "GUL.1: Saggin",
+    "GUL.1: Homem misterioso.",
+    "GUL.1: Tung tung.",
+    "GUL.1: Meu pe.",
+    "GUL.1: Kalip.",
+    "GUL.1: Redarelhada de aco.",
+    "GUL.1: PimPimPong.",
+    "GUL.1: o cenário atual atua armadilhas gulosas.",
+    "GUL.1: Lembre se de alimentar o seu homem misterioso."
 }
 local jarvisAtual = ""
 local jarvisProgresso = 0

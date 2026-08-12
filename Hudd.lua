@@ -1,6 +1,6 @@
 -- ==========================================
--- HUD GLASSES - RED_INDUSTRIES_OS (DUO V7)
--- 20 FPS Refresh + Auto-Track (10s)
+-- HUD GLASSES - RED_INDUSTRIES_OS (DUO V8)
+-- High-Contrast Neon + Logo Red Industries
 -- ==========================================
 
 local hud = peripheral.find("hud_glasses")
@@ -21,14 +21,15 @@ hud.setSize(100, 50)
 local w, h = hud.getSize()
 
 -- ==========================================
--- CONFIGURAÇÕES DA EQUIPE E BASE
+-- CONFIGURAÇÕES DA EQUIPE E MIRA
 -- ==========================================
 local meuNick = "redgames132"
 local baseX, baseY, baseZ = -573, 57, -1446
 local raioGlobal = 250
 local raioLocal = 50
 
-local offsetMiraX = 0  
+-- Empurra o centro do HUD 3 pixels para a esquerda
+local offsetMiraX = -3  
 local offsetMiraY = 1  
 
 local operadores = { "redgames132", "cadipadi" }
@@ -41,19 +42,18 @@ local tracker = {
 }
 local aliados = { ["KAIOX_NEGROX"] = true, ["goonerstickle69"] = true }
 
--- Paleta Holográfica
+-- Paleta Neon de Alto Contraste
 local C_TRANS = 0
+local C_MOLDURA = colors.lime      -- Verde Neon
+local C_DESTAQUE = colors.orange   -- Laranja Tático
 local C_VERMELHO = colors.red
 local C_BRANCO = colors.white
 local C_AMARELO = colors.yellow
-local C_ALERTA = colors.orange
 local C_CYAN = colors.cyan
-local C_VERDE = colors.lime
-local C_AZUL_CLARO = colors.lightBlue
 local C_CINZA = colors.gray
 local C_CINZA_ESCURO = colors.lightGray
 local C_DIAMANTE = colors.lightBlue
-local C_ESMERALDA = colors.lime
+local C_ESMERALDA = colors.green
 local C_OURO = colors.yellow
 local C_FERRO = colors.white
 
@@ -61,13 +61,12 @@ local frame = 0
 local speedTicks = 0
 local startTime = os.clock()
 
--- Banco de Dados Geo Scanner
 local dadosMinerios = {}
 
 -- Sistema JARVIS
 local jarvisAtivo = true 
 local jarvisDicas = {
-    "JARVIS: Radares em Alta Frequencia (20 FPS).",
+    "JARVIS: Interface alterada para Verde Tatico. Visibilidade 100%.",
     "JARVIS: Auto-Track ativado. Foco alterna a cada 10 segundos.",
     "JARVIS: Trabalhem em conjunto. O fogo cruzado e letal.",
     "JARVIS: Setas no radar de minerios indicam a profundidade.",
@@ -80,9 +79,9 @@ local jarvisProgresso = 0
 local jarvisTempoTela = 0
 
 -- Geometria dos 3 Radares
-local radar1CX, radar1CY = 14, 8   -- Global (Base)
-local radar2CX, radar2CY = 14, 22  -- Local (Foco Variável)
-local radar3CX, radar3CY = 14, 37  -- Minérios (Geo Scanner)
+local radar1CX, radar1CY = 14, 8   
+local radar2CX, radar2CY = 14, 22  
+local radar3CX, radar3CY = 14, 37  
 
 local radius1, radius2, radius3 = 5, 5, 5
 local circle1Points, circle2Points, circle3Points = {}, {}, {}
@@ -135,35 +134,51 @@ local function getProgressBar(valor, maximo, tamanho)
 end
 
 -- ==========================================
--- 1. DESENHO ESTÁTICO (MOLDURAS ESTRUTURAIS)
+-- 1. DESENHO ESTÁTICO (MOLDURAS E LOGO)
 -- ==========================================
 local function drawStaticHUD()
     hud.setBackgroundColour(C_TRANS)
     hud.clear()
-    hud.setTextColour(C_AZUL_CLARO)
+    hud.setTextColour(C_MOLDURA)
 
+    -- Paineis Esquerdos
     hud.setCursorPos(1, 1) hud.write("+==[ GLOBAL: BASE ]===============-")
     hud.setCursorPos(1, 2) hud.write("||")
-    
     hud.setCursorPos(1, 16) hud.write("||")
-
     hud.setCursorPos(1, 30) hud.write("+==[ GEO SCANNER ]================-")
     hud.setCursorPos(1, 31) hud.write("||")
-
-    hud.setCursorPos(w - 38, 1) hud.write("-===================[ TELEMETRIA ]==+")
-    hud.setCursorPos(w - 1, 2) hud.write("||")
-
     hud.setCursorPos(1, h - 1) hud.write("||")
     hud.setCursorPos(1, h)     hud.write("+==[ EQUIPE E VITAIS ]============-")
 
-    hud.setCursorPos(w - 1, h - 1) hud.write("||")
-    hud.setCursorPos(w - 34, h)    hud.write("-======================[ CORE OS ]==+")
+    -- Paineis Direitos
+    hud.setCursorPos(w - 38, 1) hud.write("-===================[ TELEMETRIA ]==+")
+    hud.setCursorPos(w - 1, 2) hud.write("||")
+    hud.setCursorPos(w - 34, h - 17) hud.write("-======================[ CORE OS ]==+")
+    hud.setCursorPos(w - 1, h - 16) hud.write("||")
 
+    -- Miras laterais
     hud.setTextColour(C_CINZA)
     hud.setCursorPos(2, math.floor(h/2) - 1) hud.write("[")
     hud.setCursorPos(2, math.floor(h/2) + 1) hud.write("[")
     hud.setCursorPos(w - 1, math.floor(h/2) - 1) hud.write("]")
     hud.setCursorPos(w - 1, math.floor(h/2) + 1) hud.write("]")
+
+    -- ==========================================
+    -- LOGO RED INDUSTRIES (CANTO DIREITO INFERIOR)
+    -- ==========================================
+    local logoY = h - 9
+    hud.setTextColour(C_VERMELHO)
+    hud.setCursorPos(w - 18, logoY)     hud.write(" //=======\\")
+    hud.setCursorPos(w - 18, logoY + 1) hud.write(" //  ____//")
+    hud.setCursorPos(w - 18, logoY + 2) hud.write(" // //___/ ")
+    hud.setCursorPos(w - 18, logoY + 3) hud.write(" //  \\ \\   ")
+    hud.setCursorPos(w - 18, logoY + 4) hud.write(" //   \\ \\  ")
+    
+    hud.setCursorPos(w - 17, logoY + 6)
+    hud.write("-- R E D --")
+    hud.setCursorPos(w - 18, logoY + 7)
+    hud.setTextColour(C_BRANCO)
+    hud.write("INDUSTRIES")
 end
 
 -- ==========================================
@@ -203,7 +218,6 @@ local function updateDynamicHUD()
                         if tracker[p].lastX == nil then
                             tracker[p].lastX, tracker[p].lastY, tracker[p].lastZ = tracker[p].x, tracker[p].y, tracker[p].z
                         end
-                        -- Velocidade atualizada a cada 20 frames (1 segundo agora)
                         if speedTicks >= 20 then
                             local dx = tracker[p].x - tracker[p].lastX
                             local dy = tracker[p].y - tracker[p].lastY
@@ -255,7 +269,6 @@ local function updateDynamicHUD()
 
     table.sort(dadosRadar, function(a, b) return a.dM < b.dM end)
 
-    -- Leitura do Geo Scanner (20 frames = 1 seg)
     if geo and frame % 20 == 0 then
         local sucGeo, scanResult = pcall(geo.scan, 12)
         if sucGeo and type(scanResult) == "table" then
@@ -272,8 +285,7 @@ local function updateDynamicHUD()
                     
                     local icon = "-"
                     if block.y > 1 then icon = "^" 
-                    elseif block.y < -1 then icon = "v" 
-                    end
+                    elseif block.y < -1 then icon = "v" end
 
                     table.insert(dadosMinerios, {x = block.x, y = block.y, z = block.z, col = color, ic = icon})
                 end
@@ -286,11 +298,11 @@ local function updateDynamicHUD()
 
     local shortName = string.upper(string.sub(trackedPlayer, 1, 6))
     hud.setCursorPos(1, 15)
-    hud.setTextColour(C_AZUL_CLARO)
+    hud.setTextColour(C_MOLDURA)
     hud.write("+==[ FOCO: " .. string.format("%-6s", shortName) .. " ]==========-")
 
     -- ==========================================
-    -- SISTEMA DEFCON E ALVO CENTRAL
+    -- SISTEMA DEFCON (TOPO CENTRAL)
     -- ==========================================
     local defconLvl = 5
     local defconCol = C_VERDE
@@ -299,15 +311,15 @@ local function updateDynamicHUD()
     if inimigosProximos > 0 then
         if menorDistanciaDeMim <= 30 then defconLvl, defconCol, defconTxt = 1, C_VERMELHO, "INVASAO"
         elseif menorDistanciaDeMim <= 80 then defconLvl, defconCol, defconTxt = 2, C_VERMELHO, "PERIGO"
-        elseif menorDistanciaDeMim <= 150 then defconLvl, defconCol, defconTxt = 3, C_ALERTA, "ALERTA"
+        elseif menorDistanciaDeMim <= 150 then defconLvl, defconCol, defconTxt = 3, C_DESTAQUE, "ALERTA"
         else defconLvl, defconCol, defconTxt = 4, C_AMARELO, "CAUTELA" end
     end
     writeData(midX - 10, 2, "DEFCON " .. defconLvl .. " :: ", C_BRANCO, defconTxt, defconCol, 15)
 
     if inimigoMaisProximo then
-        writeData(midX - 12, midY - 2, ">> ALVO: ", C_ALERTA, inimigoMaisProximo .. " ("..menorDistanciaDeMim.."m)", C_VERMELHO, 25)
+        writeData(midX - 12, midY - 2, ">> ALVO: ", C_DESTAQUE, inimigoMaisProximo .. " ("..menorDistanciaDeMim.."m)", C_VERMELHO, 25)
     else
-        writeData(midX - 12, midY - 2, "", C_ALERTA, "", C_VERMELHO, 35)
+        writeData(midX - 12, midY - 2, "", C_DESTAQUE, "", C_VERMELHO, 35)
     end
 
     -- ==========================================
@@ -327,7 +339,6 @@ local function updateDynamicHUD()
         end
 
         if jarvisAtual ~= "" then
-            -- Progresso de texto (mais lento pq roda a 20fps)
             if jarvisProgresso < #jarvisAtual then
                 jarvisProgresso = jarvisProgresso + 1 
                 if jarvisProgresso > #jarvisAtual then jarvisProgresso = #jarvisAtual end
@@ -352,7 +363,7 @@ local function updateDynamicHUD()
     for rY = radar1CY - 4, radar1CY + 4 do hud.setCursorPos(radar1CX, rY) hud.write("|") end
     hud.setCursorPos(radar1CX - 7, radar1CY) hud.write("-------+-------")
 
-    hud.setTextColour(C_AZUL_CLARO)
+    hud.setTextColour(C_MOLDURA)
     for _, pt in ipairs(circle1Points) do hud.setCursorPos(pt.x, pt.y) hud.write(".") end
     hud.setCursorPos(radar1CX, radar1CY) hud.setTextColour(C_AMARELO) hud.write("B")
 
@@ -362,7 +373,7 @@ local function updateDynamicHUD()
             local plotX = radar1CX + math.floor(alvo.dxB * scale * 1.5)
             local plotY = radar1CY + math.floor(alvo.dzB * scale)
             hud.setCursorPos(plotX, plotY)
-            hud.setTextColour(alvo.aliado and C_VERDE or C_ALERTA)
+            hud.setTextColour(alvo.aliado and C_MOLDURA or C_DESTAQUE)
             hud.write(alvo.aliado and "O" or "X")
         end
     end
@@ -389,7 +400,7 @@ local function updateDynamicHUD()
             local plotX = radar2CX + math.floor(alvo.dxM * scale * 1.5)
             local plotY = radar2CY + math.floor(alvo.dzM * scale)
             hud.setCursorPos(plotX, plotY)
-            hud.setTextColour(alvo.aliado and C_VERDE or C_BRANCO)
+            hud.setTextColour(alvo.aliado and C_MOLDURA or C_BRANCO)
             hud.write(alvo.aliado and "O" or "X")
         end
     end
@@ -407,7 +418,7 @@ local function updateDynamicHUD()
         hud.setTextColour(C_VERMELHO)
         hud.write("[ OFFLINE ]")
     else
-        hud.setTextColour(C_ESMERALDA)
+        hud.setTextColour(C_MOLDURA)
         for _, pt in ipairs(circle3Points) do hud.setCursorPos(pt.x, pt.y) hud.write(".") end
         hud.setCursorPos(radar3CX, radar3CY) hud.setTextColour(C_CYAN) hud.write("V")
 
@@ -447,7 +458,7 @@ local function updateDynamicHUD()
     end
 
     hud.setCursorPos(3, blY + 2)
-    hud.setTextColour(C_AZUL_CLARO)
+    hud.setTextColour(C_MOLDURA)
     hud.write("ALVOS (DE: " .. shortName .. "):    ")
 
     local row = 3
@@ -455,7 +466,7 @@ local function updateDynamicHUD()
     for _, alvo in ipairs(dadosRadar) do
         if alvo.dM <= raioGlobal and printados < 4 then
             local icon = alvo.aliado and "[ALIADO]" or "[HOSTIL]"
-            local col = alvo.aliado and C_VERDE or C_ALERTA
+            local col = alvo.aliado and C_MOLDURA or C_DESTAQUE
             local elev = "-"
             if alvo.dyM > 4 then elev = "^" elseif alvo.dyM < -4 then elev = "v" end
             
@@ -467,9 +478,9 @@ local function updateDynamicHUD()
     for r = row, 6 do writeData(3, blY + r, "", C_BRANCO, "", C_BRANCO, 25) end
 
     -- ==========================================
-    -- TELEMETRIA E CORE OS
+    -- TELEMETRIA
     -- ==========================================
-    local trX = w - 28
+    local trX = w - 30
     local cycle = getDayCycle(os.time())
 
     if op1.online then
@@ -484,44 +495,45 @@ local function updateDynamicHUD()
         writeData(trX, 4, "CAD :: ", C_CYAN, "[ SINAL PERDIDO ]", C_CINZA, 22)
     end
 
-    writeData(trX, 6, "BIO :: ", C_AZUL_CLARO, string.sub(currentBiome, 1, 20), C_BRANCO, 22)
-    writeData(trX, 7, "LUZ :: ", C_AZUL_CLARO, currentLight .. "/15 ("..cycle..")", spawnRisk and C_ALERTA or C_VERDE, 22)
+    writeData(trX, 6, "BIO :: ", C_MOLDURA, string.sub(currentBiome, 1, 20), C_BRANCO, 22)
+    writeData(trX, 7, "LUZ :: ", C_MOLDURA, currentLight .. "/15 ("..cycle..")", spawnRisk and C_DESTAQUE or C_MOLDURA, 22)
 
-    local brY = h - 5
-    local trXC = w - 24
+    -- ==========================================
+    -- CORE OS
+    -- ==========================================
+    local brY = h - 16
+    local trXC = w - 26
     
     local eqBars = {"|", "||", "|||", "||||", "|||||"}
     local eq1, eq2, eq3 = eqBars[math.random(1,5)], eqBars[math.random(1,5)], eqBars[math.random(1,5)]
     
-    writeData(trXC, brY + 1, "SYNC:: ", C_AZUL_CLARO, eq1.." "..eq2.." "..eq3, C_VERDE, 17)
-    writeData(trXC, brY + 2, "IRL :: ", C_AZUL_CLARO, os.date("%H:%M"), C_BRANCO, 17)
-    writeData(trXC, brY + 3, "UPT :: ", C_AZUL_CLARO, formatUptime(os.clock() - startTime), C_BRANCO, 17)
+    writeData(trXC, brY + 1, "SYNC:: ", C_MOLDURA, eq1.." "..eq2.." "..eq3, C_MOLDURA, 17)
+    writeData(trXC, brY + 2, "IRL :: ", C_MOLDURA, os.date("%H:%M"), C_BRANCO, 17)
+    writeData(trXC, brY + 3, "UPT :: ", C_MOLDURA, formatUptime(os.clock() - startTime), C_BRANCO, 17)
     
     local jStatus = jarvisAtivo and "[ ONLINE ]" or "[ OFFLINE ]"
-    local jColor = jarvisAtivo and C_VERDE or C_CINZA
-    writeData(trXC, brY + 4, "A.I :: ", C_AZUL_CLARO, jStatus, jColor, 17)
+    local jColor = jarvisAtivo and C_MOLDURA or C_CINZA
+    writeData(trXC, brY + 4, "A.I :: ", C_MOLDURA, jStatus, jColor, 17)
 end
 
 -- ==========================================
--- LOOP PRINCIPAL (20 FPS)
+-- LOOP PRINCIPAL
 -- ==========================================
 term.clear()
 term.setCursorPos(1, 1)
-term.setTextColor(colors.red)
+term.setTextColor(colors.lime)
 print("======================================")
-print(" RED_INDUSTRIES :: DUO-CORE V7")
+print(" RED_INDUSTRIES :: DUO-CORE V8")
 print("======================================")
 term.setTextColor(colors.white)
-print(" > Refresh rate dobrado (20 FPS).")
-print(" > Auto-Track (10s) Ativado.")
-print(" > [T] Alterna o foco do Radar manualmente.")
-print(" > [J] Liga/Desliga Jarvis.")
-print(" > [Q] Desliga o HUD.")
+print(" > UI alterada para Verde/Laranja Neon.")
+print(" > Logo inserida no canto inferior direito.")
+print(" > Mira central deslocada para a esquerda.")
+print(" > [T] Alterna foco. [J] Alterna Jarvis.")
 
 drawStaticHUD() 
 
 local running = true
--- Refresh de 0.05 segundos (20 quadros por segundo)
 local timer = os.startTimer(0.05)
 
 while running do
@@ -530,7 +542,6 @@ while running do
     if event == "timer" and p1 == timer then
         frame = frame + 1
         
-        -- AUTO-TRACK: A CADA 10 SEGUNDOS (200 frames)
         if frame % 200 == 0 then
             currentTrackIndex = currentTrackIndex + 1
             if currentTrackIndex > #operadores then currentTrackIndex = 1 end
@@ -549,7 +560,6 @@ while running do
                 jarvisAtual = "" 
             end
         elseif p1 == keys.t then
-            -- MUDANÇA MANUAL (E reseta o relógio do Auto-Track pra não mudar logo em seguida)
             currentTrackIndex = currentTrackIndex + 1
             if currentTrackIndex > #operadores then currentTrackIndex = 1 end
             trackedPlayer = operadores[currentTrackIndex]

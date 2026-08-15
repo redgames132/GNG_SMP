@@ -1,5 +1,5 @@
 -- ==========================================
--- Radar HUD V4 - APEX EDITION
+-- Radar HUD V4.1 - Correcao de Maiusculas
 -- ==========================================
 
 local detector = peripheral.wrap("top")
@@ -16,6 +16,7 @@ end
 local radarX = -8500
 local radarZ = -397
 
+-- IMPORTANTE: Deixe os nomes aqui sempre em letras MINUSCULAS!
 local whitelist = {
     ["cadipadi"] = true,
     ["redgames132"] = true,
@@ -48,7 +49,7 @@ local cAlarmBg  = colors.red
 local cAlarmFg  = colors.white
 
 local w, h = monitor.getSize()
-local panelWidth = 26 -- Largura do menu esquerdo
+local panelWidth = 26 
 local radarSize = math.min(w - panelWidth, h) 
 local centerX = panelWidth + math.floor((w - panelWidth) / 2)
 local centerY = math.floor(h / 2)
@@ -112,10 +113,11 @@ local function drawUI()
     local isInf = (ranges[currentRangeIdx] == "Inf")
     local players = getTargetPlayers()
     
-    -- Verifica Alarme
+    -- Verifica Alarme ignorando maiusculas/minusculas
     local alarmActive = false
     for _, p in ipairs(players) do
-        if not whitelist[p.name] then
+        local checkName = string.lower(p.name) -- Converte o nome para minusculas
+        if not whitelist[checkName] then
             local dist = math.sqrt((p.x - radarX)^2 + (p.z - radarZ)^2)
             if dist <= 1000 then
                 alarmActive = true
@@ -125,19 +127,15 @@ local function drawUI()
     end
 
     if isInf then
-        -- ==========================================
         -- TELA: MODO INFINITO (DATABASE GLOBAL)
-        -- ==========================================
         fillRect(1, 1, w, 3, cMenuBg)
         drawText(math.floor(w/2) - 15, 2, "=== SISTEMA DE RASTREIO GLOBAL ===", cTitle, cMenuBg)
         
-        -- Controlos minimizados no topo
         drawText(2, 2, "ALCANCE:", cText, cMenuBg)
         drawButton("range_down", 11, 2, "<")
         drawText(13, 2, "Inf", cText, cMenuBg)
         drawButton("range_up", 17, 2, ">")
         
-        -- Cabecalhos da tabela
         drawText(2, 5, "NOME DO JOGADOR", cTextDark, cRadarBg)
         drawText(25, 5, "COORDENADAS (X, Y, Z)", cTextDark, cRadarBg)
         drawText(1, 6, string.rep("-", w), cMenuBg, cRadarBg)
@@ -146,7 +144,8 @@ local function drawUI()
         local col1 = 2
         local col2 = 25
         for _, p in ipairs(players) do
-            local color = whitelist[p.name] and cFriend or cText
+            local isFriend = whitelist[string.lower(p.name)]
+            local color = isFriend and cFriend or cText
             drawText(col1, row, p.name, color, cRadarBg)
             drawText(col2, row, string.format("X: %-6d Y: %-3d Z: %-6d", p.x, p.y, p.z), cTextDark, cRadarBg)
             
@@ -159,16 +158,10 @@ local function drawUI()
         end
 
     else
-        -- ==========================================
         -- TELA: MODO RADAR NORMAL
-        -- ==========================================
-        -- Fundo do Menu Esquerdo
         fillRect(1, 1, panelWidth, h, cMenuBg)
-        
-        -- Cabecalho Menu
         drawText(2, 2, "-= PAINEL DE CONTROLE =-", cTitle, cMenuBg)
         
-        -- Controles: Raio
         drawText(2, 4, "ALCANCE (Blocos):", cText, cMenuBg)
         drawButton("range_down", 2, 6, " [ < ] ")
         
@@ -178,7 +171,6 @@ local function drawUI()
         
         drawButton("range_up", 18, 6, " [ > ] ")
 
-        -- Controles: Velocidade
         drawText(2, 9, "ATUALIZACAO (Seg):", cText, cMenuBg)
         drawButton("speed_down", 2, 11, " [ < ] ")
         
@@ -188,17 +180,14 @@ local function drawUI()
         
         drawButton("speed_up", 18, 11, " [ > ] ")
 
-        -- Linha separadora
         drawText(2, 14, string.rep("-", panelWidth-2), cTextDark, cMenuBg)
         drawText(2, 15, "SINAIS DETECTADOS:", cTitle, cMenuBg)
         
-        -- Desenhar Anéis do Radar
         drawCircle(centerX, centerY, maxRadiusX, cRadar)
         drawCircle(centerX, centerY, math.floor(maxRadiusX * 0.66), cRadar)
         drawCircle(centerX, centerY, math.floor(maxRadiusX * 0.33), cRadar)
         drawText(centerX, centerY, "+", cTextDark, cRadarBg)
 
-        -- Barra de Alarme
         if alarmActive then
             alarmBlink = not alarmBlink
             if alarmBlink then
@@ -211,7 +200,6 @@ local function drawUI()
         local tableRow = 17
         local maxMapDist = ranges[currentRangeIdx]
 
-        -- Processar Pontos no Radar e Lista
         for _, p in ipairs(players) do
             local relX = p.x - radarX
             local relZ = p.z - radarZ
@@ -222,10 +210,10 @@ local function drawUI()
             local screenX = math.floor(centerX + screenRelX)
             local screenY = math.floor(centerY + screenRelZ)
             
-            local isFriend = whitelist[p.name]
+            -- Ignora maiusculas/minusculas para definir se e amigo
+            local isFriend = whitelist[string.lower(p.name)]
             local isIntruder = (not isFriend) and (math.sqrt(relX^2 + relZ^2) <= 1000)
             
-            -- Desenhar no Mapa
             if screenX > panelWidth and screenX <= w and screenY > 0 and screenY <= h then
                 local dotColor = cDot
                 if isIntruder then dotColor = (alarmBlink and colors.red or colors.orange) end
@@ -235,7 +223,6 @@ local function drawUI()
                 drawText(screenX - math.floor(string.len(p.name)/2), screenY + 1, string.sub(p.name, 1, 5), cText, cRadarBg)
             end
             
-            -- Tabela Menu Esquerdo
             if tableRow <= h - 2 then
                 drawText(2, tableRow, string.sub(p.name, 1, 12), isFriend and cFriend or cText, cMenuBg)
                 drawText(15, tableRow, string.format("[%d, %d]", p.x, p.z), cTextDark, cMenuBg)

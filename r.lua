@@ -21,7 +21,7 @@ local radarZ = -397
 local whitelist = {
     ["cadipadi"] = true,
     ["redgames"] = true,
-    ["redgames13"] = true,
+    ["redgames132"] = true,
     ["goonerstickle69"] = true,
     ["goonerstic"] = true
 }

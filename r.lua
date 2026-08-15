@@ -1,10 +1,10 @@
 -- ==========================================
--- Radar HUD Avançado V2
--- Requisitos: Advanced Peripherals, Monitor
+-- Radar HUD V3 - Alarme e Modo Infinito
 -- ==========================================
 
 local detector = peripheral.wrap("top")
 local monitor = peripheral.wrap("left")
+local speaker = peripheral.find("speaker") -- Opcional para som de alarme
 
 if not detector or not monitor then
     print("Erro: Verifique se o detetor esta no topo e o monitor a esquerda!")
@@ -12,48 +12,54 @@ if not detector or not monitor then
 end
 
 -- ==========================================
--- CONFIGURAÇÕES IMPORTANTES (Edite aqui!)
+-- CONFIGURAÇÕES
 -- ==========================================
--- Coloque as coordenadas X e Z exatas de onde esta o seu radar no mundo.
--- Olhando para a sua imagem, parece ser em X = -8500 e Z = -397.
 local radarX = -8500
 local radarZ = -397
 
-local aspect = 0.65 -- Compensacao para deixar o circulo redondo (nao mexa)
+-- Lista de pessoas que NAO ativam o alarme (em letras minusculas por seguranca)
+local whitelist = {
+    ["cadipadi"] = true,
+    ["redgames"] = true,
+    ["redgames13"] = true,
+    ["goonerstickle69"] = true,
+    ["goonerstic"] = true
+}
+
+local aspect = 0.65
 monitor.setTextScale(0.5)
 
--- Listas de opções
 local ranges = {50, 100, 200, 500, 1000, 2000, "Inf"}
-local currentRangeIdx = 3 -- Comeca no 200
+local currentRangeIdx = 3
 
-local speeds = {0.5, 1, 2, 5, 10}
-local currentSpeedIdx = 2 -- Comeca em 1 segundo
+local speeds = {0.5, 1, 2, 5}
+local currentSpeedIdx = 2
 
--- Cores
+-- Cores da UI
 local colorBg = colors.black
 local colorPanelBg = colors.gray
 local colorRadar = colors.green
 local colorDot = colors.lime
 local colorText = colors.white
 local colorButton = colors.lightGray
+local colorAlert = colors.red
 
 local w, h = monitor.getSize()
-local radarSize = math.min(w - 25, h) -- Reserva 25 colunas para o painel esquerdo
+local radarSize = math.min(w - 25, h)
 local centerX = w - math.floor(radarSize / 2)
 local centerY = math.floor(h / 2)
 local maxRadiusX = math.floor(radarSize / 2) - 2
-local maxRadiusY = math.floor(maxRadiusX * aspect)
 
 local buttons = {}
+local isAlarmActive = false
 
--- Limpa a tela
+-- Funcoes Basicas
 local function clear()
     monitor.setBackgroundColor(colorBg)
     monitor.clear()
     buttons = {}
 end
 
--- Função para desenhar botoes clicaveis
 local function drawButton(id, x, y, text, bg, fg)
     monitor.setCursorPos(x, y)
     monitor.setBackgroundColor(bg)
@@ -62,7 +68,6 @@ local function drawButton(id, x, y, text, bg, fg)
     table.insert(buttons, {id=id, x=x, y=y, len=string.len(text)})
 end
 
--- Desenha um circulo compensando a distorcao da tela
 local function drawCircle(cx, cy, radiusX, color)
     monitor.setTextColor(color)
     monitor.setBackgroundColor(colorBg)
@@ -75,40 +80,45 @@ local function drawCircle(cx, cy, radiusX, color)
     end
 end
 
--- Busca jogadores
 local function getTargetPlayers()
     local players = {}
-    local maxDist = ranges[currentRangeIdx]
+    local isInf = (ranges[currentRangeIdx] == "Inf")
     
     local list = {}
-    if maxDist == "Inf" then
+    if isInf then
         list = detector.getOnlinePlayers()
     else
-        list = detector.getPlayersInRange(maxDist)
+        list = detector.getPlayersInRange(ranges[currentRangeIdx])
     end
 
     for _, name in ipairs(list) do
         local pos = detector.getPlayerPos(name)
         if pos then
-            table.insert(players, {name = name, x = math.floor(pos.x), y = math.floor(pos.y), z = math.floor(pos.z)})
+            table.insert(players, {
+                name = name, 
+                x = math.floor(pos.x), 
+                y = math.floor(pos.y), 
+                z = math.floor(pos.z)
+            })
         end
     end
     return players
 end
 
--- Interface Grafica
+-- Processa UI e Logica Principal
 local function drawUI()
     clear()
+    isAlarmActive = false
     
-    -- Desenha a divisao do painel
+    -- Painel Lateral (Fundo)
     monitor.setBackgroundColor(colorPanelBg)
     for y = 1, h do
-        monitor.setCursorPos(24, y)
+        monitor.setCursorPos(25, y)
         monitor.write(" ")
     end
     monitor.setBackgroundColor(colorBg)
 
-    -- Controlos: Raio
+    -- Controlos
     monitor.setTextColor(colorText)
     monitor.setCursorPos(2, 2) monitor.write("Alcance:")
     drawButton("range_down", 2, 4, "[ - ]", colorButton, colors.black)
@@ -121,9 +131,8 @@ local function drawUI()
     
     drawButton("range_up", 17, 4, "[ + ]", colorButton, colors.black)
 
-    -- Controlos: Velocidade
     monitor.setTextColor(colorText)
-    monitor.setCursorPos(2, 7) monitor.write("Atualizacao (Seg):")
+    monitor.setCursorPos(2, 7) monitor.write("Atualizacao(s):")
     drawButton("speed_down", 2, 9, "[ - ]", colorButton, colors.black)
     
     local speedText = tostring(speeds[currentSpeedIdx])
@@ -134,62 +143,114 @@ local function drawUI()
     
     drawButton("speed_up", 17, 9, "[ + ]", colorButton, colors.black)
 
-    -- Radar de Fundo
-    drawCircle(centerX, centerY, maxRadiusX, colorRadar)
-    drawCircle(centerX, centerY, math.floor(maxRadiusX / 2), colorRadar)
-    
-    -- Mira central do radar
-    monitor.setTextColor(colors.gray)
-    monitor.setCursorPos(centerX, centerY) monitor.write("+")
-
-    -- Jogadores
+    -- Obter jogadores e verificar alarme
     local players = getTargetPlayers()
-    local tableRow = 12 -- A tabela de nomes comeca na linha 12 do lado esquerdo
-    local maxMapDist = ranges[currentRangeIdx]
-    if maxMapDist == "Inf" then maxMapDist = 2000 end
-    
-    monitor.setCursorPos(2, tableRow)
-    monitor.setTextColor(colors.yellow)
-    monitor.write("SINAIS DETETADOS:")
-    tableRow = tableRow + 2
+    local isInf = (ranges[currentRangeIdx] == "Inf")
 
     for _, p in ipairs(players) do
-        -- Calcular posicao no ecra em relacao ao centro do radar
-        local relX = p.x - radarX
-        local relZ = p.z - radarZ
-        
-        local screenRelX = (relX / maxMapDist) * maxRadiusX
-        local screenRelZ = (relZ / maxMapDist) * maxRadiusX * aspect
-        
-        local screenX = math.floor(centerX + screenRelX)
-        local screenY = math.floor(centerY + screenRelZ)
-        
-        -- Desenhar ponto verde brilhante se estiver dentro do circulo do radar
-        if screenX > 25 and screenX <= w and screenY > 0 and screenY <= h then
-            monitor.setCursorPos(screenX, screenY)
-            monitor.setTextColor(colorDot)
-            monitor.write("o")
-            
-            -- Pequeno nome em cima do ponto
-            monitor.setCursorPos(screenX - math.floor(string.len(p.name)/2), screenY - 1)
-            monitor.setTextColor(colors.white)
-            monitor.write(string.sub(p.name, 1, 5))
+        local dist = math.sqrt((p.x - radarX)^2 + (p.z - radarZ)^2)
+        -- Checar Alarme (Menos de 1000 blocos e nao esta na whitelist)
+        if dist < 1000 and not whitelist[string.lower(p.name)] then
+            isAlarmActive = true
         end
+    end
+
+    -- Desenhar Area Direita (Radar ou Tabela Infinita)
+    if isInf then
+        -- MODO INFINITO: Apenas Tabela
+        monitor.setCursorPos(28, 2)
+        monitor.setTextColor(colors.yellow)
+        monitor.write("=== REGISTO GLOBAL DE JOGADORES ===")
         
-        -- Adicionar a tabela esquerda (se houver espaco)
-        if tableRow <= h then
-            monitor.setCursorPos(2, tableRow)
+        local row = 4
+        local col = 28
+        for _, p in ipairs(players) do
+            monitor.setCursorPos(col, row)
             monitor.setTextColor(colorText)
-            monitor.write(string.sub(p.name, 1, 10))
-            monitor.setCursorPos(2, tableRow + 1)
+            monitor.write(string.sub(p.name, 1, 14))
+            
+            monitor.setCursorPos(col, row + 1)
             monitor.setTextColor(colors.gray)
-            monitor.write("X:" .. p.x .. " Z:" .. p.z)
-            tableRow = tableRow + 3
+            monitor.write("X:" .. p.x .. " Y:" .. p.y .. " Z:" .. p.z)
+            
+            row = row + 3
+            if row > h - 2 then
+                row = 4
+                col = col + 25 -- Muda para a proxima coluna se encher a tela
+            end
+        end
+    else
+        -- MODO RADAR NORMAL
+        drawCircle(centerX, centerY, maxRadiusX, colorRadar)
+        drawCircle(centerX, centerY, math.floor(maxRadiusX / 2), colorRadar)
+        monitor.setTextColor(colors.gray)
+        monitor.setCursorPos(centerX, centerY) monitor.write("+")
+
+        local tableRow = 12
+        monitor.setCursorPos(2, tableRow)
+        monitor.setTextColor(colors.yellow)
+        monitor.write("SINAIS LOCAIS:")
+        tableRow = tableRow + 2
+
+        for _, p in ipairs(players) do
+            local maxMapDist = ranges[currentRangeIdx]
+            local relX = p.x - radarX
+            local relZ = p.z - radarZ
+            
+            local screenRelX = (relX / maxMapDist) * maxRadiusX
+            local screenRelZ = (relZ / maxMapDist) * maxRadiusX * aspect
+            local screenX = math.floor(centerX + screenRelX)
+            local screenY = math.floor(centerY + screenRelZ)
+            
+            -- Desenhar ponto no radar
+            if screenX > 25 and screenX <= w and screenY > 0 and screenY <= h then
+                -- Pisca vermelho se for intruso
+                if not whitelist[string.lower(p.name)] then
+                    monitor.setTextColor(colorAlert)
+                else
+                    monitor.setTextColor(colorDot)
+                end
+                monitor.setCursorPos(screenX, screenY)
+                monitor.write("o")
+                
+                monitor.setCursorPos(screenX - math.floor(string.len(p.name)/2), screenY - 1)
+                monitor.setTextColor(colors.white)
+                monitor.write(string.sub(p.name, 1, 5))
+            end
+            
+            -- Tabela esquerda
+            if tableRow <= h - 1 then
+                monitor.setCursorPos(2, tableRow)
+                if not whitelist[string.lower(p.name)] then
+                    monitor.setTextColor(colorAlert)
+                else
+                    monitor.setTextColor(colorText)
+                end
+                monitor.write(string.sub(p.name, 1, 10))
+                monitor.setCursorPos(2, tableRow + 1)
+                monitor.setTextColor(colors.gray)
+                monitor.write("X:" .. p.x .. " Z:" .. p.z)
+                tableRow = tableRow + 3
+            end
+        end
+    end
+
+    -- ALARME VISUAL E SONORO
+    if isAlarmActive then
+        monitor.setCursorPos(2, h)
+        monitor.setBackgroundColor(colorAlert)
+        monitor.setTextColor(colors.white)
+        monitor.write(" !! INVASOR !! ")
+        monitor.setBackgroundColor(colorBg)
+        
+        if speaker then
+            -- Toca um som de sino/alerta
+            speaker.playSound("block.note_block.bell", 3, 1)
         end
     end
 end
 
--- Função para processar os cliques
+-- Interacao com Cliques
 local function handleClick(x, y)
     for _, btn in ipairs(buttons) do
         if y == btn.y and x >= btn.x and x < (btn.x + btn.len) then
@@ -202,7 +263,7 @@ local function handleClick(x, y)
             elseif btn.id == "speed_up" and currentSpeedIdx < #speeds then
                 currentSpeedIdx = currentSpeedIdx + 1
             end
-            return true -- Houve uma alteracao
+            return true
         end
     end
     return false
@@ -213,18 +274,17 @@ local function main()
     while true do
         drawUI()
         
-        local currentDelay = speeds[currentSpeedIdx]
-        local timer = os.startTimer(currentDelay)
+        local timer = os.startTimer(speeds[currentSpeedIdx])
         
         while true do
             local event, side, x, y = os.pullEvent()
             
             if event == "timer" and side == timer then
-                break -- Sai do mini-loop para redesenhar a UI
+                break
             elseif event == "monitor_touch" then
                 if handleClick(x, y) then
                     os.cancelTimer(timer)
-                    break -- Sai para redesenhar a UI com a nova configuracao imediatamente
+                    break
                 end
             end
         end
@@ -233,6 +293,6 @@ end
 
 local ok, err = pcall(main)
 if not ok then
-    print("Erro detetado: ", err)
+    print("Erro: ", err)
     monitor.clear()
 end
